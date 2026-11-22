@@ -516,9 +516,9 @@ function updateCmd(){
   const el=$('cmd');let h='',an=null,bar=false,prod=false;
   if(!over&&mode==='play'&&!cpu[cur]){
     if(sel&&phase==='select'){const mv=sel.c!==origin[0]||sel.r!==origin[1];if(mv){h='<button class="go" data-a="ok">決定</button><button data-a="cancel">取消</button>';an=[sel.c,sel.r];bar=true;}}
-    else if(sel&&phase==='moved'){h=movedBtns()+'<button data-a="end">ターン終了</button>';an=[sel.c,sel.r];}
+    else if(sel&&phase==='moved'){h=movedBtns()+'<button data-a="end">ターン終了</button><button data-a="closecmd">✕ 閉じる</button>';an=[sel.c,sel.r];}
     else if(sel&&phase==='target'){h='<button data-a="back">戻る</button>';an=[sel.c,sel.r];bar=true;}
-    else if(phase==='idle'&&!sel&&info){const iu=unitAt(info[0],info[1]),T0=tiles[info[1]][info[0]],occ=iu&&iu.side===cur&&TER[T0.t].prod&&T0.owner===cur;h=(iu?unitMini(iu):'')+(occ?'<div class="cs" style="white-space:normal">この基地には機体がいるので生産できません。機体が動いて空いてから生産できます</div>':'')+'<button class="go" data-a="end">ターン終了</button><button data-a="roster">部隊一覧</button>';an=info;}
+    else if(phase==='idle'&&!sel&&info){const iu=unitAt(info[0],info[1]),T0=tiles[info[1]][info[0]],occ=iu&&iu.side===cur&&TER[T0.t].prod&&T0.owner===cur;h=(iu?unitMini(iu):'')+(occ?'<div class="cs" style="white-space:normal">この基地には機体がいるので生産できません。機体が動いて空いてから生産できます</div>':'')+'<button class="go" data-a="end">ターン終了</button><button data-a="roster">部隊一覧</button><button data-a="closecmd">✕ 閉じる</button>';an=info;}
     else if(phase==='prod'&&prodSite){const f=funds[cur];
       h='<button data-a="cancel">✕ 閉じる</button><button class="go" data-a="end">ターン終了</button>'
        +`<button class="go" data-a="gacha" data-m="99" aria-disabled="${GACHA_COST>f}">ガチャ ${GACHA_COST}G</button><button class="go" data-a="gacha" data-m="1000" aria-disabled="${GACHA2_COST>f}">超ガチャ ${GACHA2_COST}G</button>`
@@ -593,6 +593,7 @@ $('panel').addEventListener('change',e=>{if(e.target.dataset.bgm){const k=e.targ
 const onCmd=async e=>{
   const b=e.target.closest('button');if(!b)return;const a=b.dataset.a;
   if(a==='cpu'||a==='pvp'){newGame(a==='cpu');return;}
+  if(a==='closecmd'||(a==='cancel'&&b.closest('#cmd'))){cmdOff=true;$('cmd').hidden=true;if(a==='closecmd')return;}
   if(busy)return;
   if(a==='end'){SFX.select();endTurn();}
   else if(a==='quit'){resetBoard();statusUI();panelTitle();}
