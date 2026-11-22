@@ -29,7 +29,12 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;fl
 .pill.r{color:var(--red);border-color:rgba(255,106,77,.45)}
 .pill.on{box-shadow:0 0 10px currentColor}
 .mapwrap{position:relative;width:100%;border-radius:14px;border:1px solid var(--line);background:#0b0e2a;overflow:visible}
-#map{display:block;width:100%;border-radius:14px;touch-action:manipulation;cursor:pointer}
+#map{display:block;border-radius:14px;touch-action:manipulation;cursor:pointer}
+.mapbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.zoom{display:flex;align-items:center;gap:6px;font-family:var(--display);font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
+.zoom .tog:disabled{opacity:.35;cursor:default}
+.mapscroll{overflow:auto;max-height:72vh;border-radius:14px}
+.mapinner{position:relative}
 .banner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;border-radius:14px}
 .banner div{font-family:var(--display);font-weight:700;font-size:clamp(22px,6vw,32px);letter-spacing:.1em;padding:10px 22px;border-radius:10px;background:rgba(11,14,42,.82);border:1px solid currentColor;text-shadow:0 0 12px currentColor}
 .banner.tap{pointer-events:auto;cursor:pointer}
@@ -82,9 +87,9 @@ select[data-lv]{max-width:100%}
     <div class="mark">GALAXY <span>WAR</span></div>
     <div class="btns"><button class="tog" id="sndTog" aria-pressed="true">サウンド ON</button><button class="tog" id="bgmTog" aria-pressed="true">BGM ON</button><button class="tog" id="animTog" aria-pressed="true">戦闘アニメ ON</button></div>
   </header>
-  <div class="status" id="status"></div>
+  <div class="mapbar"><div class="status" id="status"></div><div class="zoom"><button class="tog" id="zOut" aria-label="縮小">－</button><span id="zLbl"></span><button class="tog" id="zIn" aria-label="拡大">＋</button></div></div>
   <div class="mapwrap" id="mapwrap">
-    <canvas id="map"></canvas>
+    <div class="mapscroll" id="mapscroll"><div class="mapinner" id="mapinner"><canvas id="map"></canvas></div></div>
     <div class="banner" id="banner" hidden></div>
     <div class="battle" id="battle" hidden>
       <div class="bhud"><div class="l"><div class="row"><span id="bnA">青軍</span><span id="bhA"></span></div><div class="bar"><i id="bbA"></i></div></div><div class="r"><div class="row"><span id="bnB">赤軍</span><span id="bhB"></span></div><div class="bar"><i id="bbB"></i></div></div></div>
@@ -265,11 +270,21 @@ function resolve(a,d){
 
 /* ---------- map rendering ---------- */
 const cv=$('map'),ctx=cv.getContext('2d');let S=20,PAD=8,CW=0,CH=0;
+const ZOOMS=[1,1.4,1.8,2.2];let zi=1;try{const v=localStorage.getItem('gw_zoom');if(v!==null&&+v>=0&&+v<ZOOMS.length)zi=+v;}catch(e){}
 const bgStars=Array.from({length:120},()=>[Math.random(),Math.random(),Math.random()]);
 function sizeMap(){
-  const W=$('mapwrap').clientWidth;S=(W-2*PAD)/(SQ3*(COLS+.5));CW=W;CH=Math.round(2*PAD+S*(1.5*(ROWS-1)+2));
-  const dpr=Math.min(devicePixelRatio||1,2);cv.width=CW*dpr;cv.height=CH*dpr;cv.style.height=CH+'px';ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=$('mapwrap').clientWidth*ZOOMS[zi];S=(W-2*PAD)/(SQ3*(COLS+.5));CW=W;CH=Math.round(2*PAD+S*(1.5*(ROWS-1)+2));
+  const dpr=Math.min(devicePixelRatio||1,2);cv.width=CW*dpr;cv.height=CH*dpr;cv.style.height=CH+'px';cv.style.width=W+'px';$('mapinner').style.width=W+'px';ctx.setTransform(dpr,0,0,dpr,0,0);
 }
+function setZoom(n){
+  n=Math.max(0,Math.min(ZOOMS.length-1,n));const sc=$('mapscroll');
+  const fx=CW?(sc.scrollLeft+sc.clientWidth/2)/CW:.5,fy=CH?(sc.scrollTop+sc.clientHeight/2)/CH:.5;
+  zi=n;try{localStorage.setItem('gw_zoom',zi);}catch(e){}
+  sizeMap();sc.scrollLeft=fx*CW-sc.clientWidth/2;sc.scrollTop=fy*CH-sc.clientHeight/2;
+  $('zLbl').textContent='マス '+ZOOMS[zi]+'×';$('zOut').disabled=zi===0;$('zIn').disabled=zi===ZOOMS.length-1;
+}
+function focusTile(c,r){const sc=$('mapscroll');if(sc.scrollWidth<=sc.clientWidth+2&&sc.scrollHeight<=sc.clientHeight+2)return;const [x,y]=ctr(c,r);sc.scrollTo({left:x-sc.clientWidth/2,top:y-sc.clientHeight/2,behavior:'smooth'});}
+$('zOut').onclick=()=>setZoom(zi-1);$('zIn').onclick=()=>setZoom(zi+1);
 addEventListener('resize',()=>{sizeMap();if(bR)sizeBattle();});
 const ctr=(c,r)=>[PAD+S*SQ3*(c+.5*(r&1))+S*SQ3/2,PAD+S+1.5*S*r];
 function hexPath(x,y,s){ctx.beginPath();for(let i=0;i<6;i++){const a=PI/180*(60*i-30);ctx.lineTo(x+s*Math.cos(a),y+s*Math.sin(a));}ctx.closePath();}
@@ -358,7 +373,7 @@ function drawUnit(u){
 }
 function mapPop(c,r,text,color){
   const [x,y]=ctr(c,r);const el=document.createElement('div');el.className='pop';el.textContent=text;el.style.color=color;
-  el.style.left=x+'px';el.style.top=(y-S*.4)+'px';$('mapwrap').appendChild(el);setTimeout(()=>el.remove(),950);
+  el.style.left=x+'px';el.style.top=(y-S*.4)+'px';$('mapinner').appendChild(el);setTimeout(()=>el.remove(),950);
 }
 let lastDraw=0;
 function tick(now){tNow=now/1000;if(bR&&!$('battle').hidden)battleFrame();else if(now-lastDraw>=30){lastDraw=now;draw();}}
@@ -554,6 +569,7 @@ async function runAI(){
   busy=false;if(!over){await sleep(400);endTurn();}
 }
 async function aiUnit(u){
+  focusTile(u.c,u.r);
   const RR=reach(u);let best=null,cap=null;
   const foes=units.filter(x=>x.side!==u.side);
   if(isHealer(u)){await aiHeal(u,RR);return;}
@@ -700,7 +716,7 @@ function battleFrame(){
 
 /* ---------- boot ---------- */
 resetBoard();
-sizeMap();panelTitle();statusUI();requestAnimationFrame(loop);
+setZoom(zi);panelTitle();statusUI();requestAnimationFrame(loop);
 </script>
 </body>
 </html>
