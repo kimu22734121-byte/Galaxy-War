@@ -183,20 +183,49 @@ const SFX={
 };
 const WEAPON_SFX=['beam','missile','drill','blade','beam','beam','blade','missile','blade'];
 const mf=m=>440*Math.pow(2,(m-69)/12);
-const PROG=[[57,60,64],[53,57,60],[48,52,55],[55,59,62]];
-let bgmStep=0,bgmNext=0,bgmFast=false;
+const DR={
+  four:['kh','h','sh','h','kh','h','sh','h','kh','h','sh','h','kh','h','sh','kh'],
+  sync:['kh','','h','k','sh','','h','','kh','','h','k','sh','','h','h'],
+  half:['kh','','h','','s','','h','','kh','','h','k','s','','h',''],
+  march:['kh','h','sh','h','kh','h','sh','h','kh','h','sh','h','kh','sh','sh','sh'],
+  drift:['','h','','h','','h','','h','','h','','h','','h','','h']};
+const BS={drive:[1,0,1,1,1,0,1,2,1,0,1,1,1,0,2,1],pulse:[1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2],walk:[1,0,0,1,0,0,1,0,2,0,0,2,0,1,0,0],drift:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],off:[1,0,1,0,2,0,1,0,1,0,1,0,2,0,1,1]};
+const LD={a:[3,-1,4,3,5,-1,4,3,2,-1,3,4,5,4,3,-1],b:[0,2,4,2,5,4,2,0,1,3,5,3,4,2,1,-1],c:[4,4,-1,3,4,-1,5,4,3,-1,2,3,4,-1,5,-1],d:[5,-1,3,-1,4,-1,3,2,5,-1,3,-1,4,3,2,-1],arp:[0,1,2,1,0,1,2,1,0,1,2,1,0,1,2,1],stab:[3,-1,-1,3,-1,3,-1,-1,4,-1,-1,4,-1,4,-1,-1]};
+const TRACKS={
+ ally:[
+  {n:'スペース・ドリフト',bpm:108,prog:[[57,60,64],[53,57,60],[48,52,55],[55,59,62]],bass:BS.drift,bw:'triangle',bv:.4,bl:1.7,lead:LD.arp,lw:'square',lv:.05,ll:.85,drum:DR.drift},
+  {n:'スターライト・マーチ',bpm:132,prog:[[60,64,67],[55,59,62],[57,60,64],[53,57,60]],bass:BS.drive,bw:'triangle',bv:.45,bl:.8,lead:LD.a,lw:'square',lv:.06,ll:.7,drum:DR.four},
+  {n:'コスモ・ラン',bpm:148,prog:[[53,57,60],[55,59,62],[52,55,59],[57,60,64]],bass:BS.pulse,bw:'triangle',bv:.42,bl:.6,lead:LD.b,lw:'sawtooth',lv:.045,ll:.6,drum:DR.sync},
+  {n:'ギャラクシー・ポップ',bpm:124,prog:[[62,66,69],[57,61,64],[59,62,66],[55,59,62]],bass:BS.off,bw:'triangle',bv:.45,bl:.9,lead:LD.c,lw:'square',lv:.06,ll:.6,drum:DR.half}],
+ enemy:[
+  {n:'ダーク・パルス',bpm:140,prog:[[50,53,57],[58,62,65],[48,52,55],[57,61,64]],bass:BS.pulse,bw:'sawtooth',bv:.3,bl:.6,lead:LD.stab,lw:'sawtooth',lv:.06,ll:.5,drum:DR.march},
+  {n:'クリムゾン・アラーム',bpm:156,prog:[[52,55,59],[48,52,55],[50,54,57],[47,51,54]],bass:BS.drive,bw:'sawtooth',bv:.3,bl:.55,lead:LD.d,lw:'square',lv:.055,ll:.5,drum:DR.four},
+  {n:'ブラックホール',bpm:128,prog:[[57,60,64],[50,53,57],[52,56,59],[57,60,64]],bass:BS.pulse,bw:'triangle',bv:.5,bl:.7,lead:LD.arp,lw:'sawtooth',lv:.04,ll:.6,drum:DR.half},
+  {n:'ウォー・ドラム',bpm:118,prog:[[48,51,55],[56,60,63],[58,62,65],[55,58,62]],bass:BS.walk,bw:'sawtooth',bv:.32,bl:1.1,lead:LD.stab,lw:'square',lv:.06,ll:.6,drum:DR.march}]};
+const bgmSel={ally:1,enemy:0};
+try{const v=JSON.parse(localStorage.getItem('gw_bgm')||'null');if(v){['ally','enemy'].forEach(k=>{if(Number.isInteger(v[k])&&v[k]>=0&&v[k]<TRACKS[k].length)bgmSel[k]=v[k];});}}catch(e){}
+let bgmPrev=null,bgmPrevT=0;
+function curTrack(){if(bgmPrev&&performance.now()<bgmPrevT)return TRACKS[bgmPrev][bgmSel[bgmPrev]];const k=(typeof mode!=='undefined'&&mode==='play'&&cur===1)?'enemy':'ally';return TRACKS[k][bgmSel[k]];}
+const bgmOpts=k=>TRACKS[k].map((t,i)=>`<option value="${i}" ${bgmSel[k]===i?'selected':''}>${i+1}. ${t.n}</option>`).join('');
+const bgmSelHTML=()=>`<div class="grid2"><label>味方ターンのBGM<select data-bgm="ally">${bgmOpts('ally')}</select></label><label>敵ターンのBGM<select data-bgm="enemy">${bgmOpts('enemy')}</select></label></div>`;
+let bgmStep=0,bgmNext=0,bgmFast=false,bgmId='';
 function startBgm(){
   bgmNext=AU.ctx.currentTime+.15;
-  setInterval(()=>{const c=AU.ctx;if(!c)return;if(!AU.on||!AU.music){bgmNext=c.currentTime+.15;return;}const st=60/(bgmFast?140:108)/2;
-    while(bgmNext<c.currentTime+.25){bgmNote(bgmStep,bgmNext-c.currentTime,st);bgmNext+=st;bgmStep++;}},60);
+  setInterval(()=>{const c=AU.ctx;if(!c)return;if(!AU.on||!AU.music){bgmNext=c.currentTime+.15;return;}
+    const T=curTrack();if(T.n!==bgmId){bgmId=T.n;bgmStep=0;bgmNext=c.currentTime+.1;}
+    const st=60/(T.bpm*(bgmFast?1.25:1))/2;
+    while(bgmNext<c.currentTime+.25){bgmNote(bgmStep,bgmNext-c.currentTime,st,T);bgmNext+=st;bgmStep++;}},60);
 }
-function bgmNote(s,w,st){
-  if(!AU.on||!AU.music||w<0)return;const ch=PROG[Math.floor(s/16)%4];
-  if(s%2===0)tone(mf(ch[0]-24),st*1.7,'triangle',.4,1,w,AU.mus);
-  tone(mf(ch[[0,1,2,1][s%4]]+12),st*.85,'square',.05,1,w,AU.mus);
-  if(s%16===0)ch.forEach(n=>tone(mf(n),st*14,'sine',.06,1,w,AU.mus));
-  if(s%2===1)noise(.04,bgmFast?.12:.07,w,9000,AU.mus);
-  if(bgmFast&&s%4===0)noise(.12,.25,w,400,AU.mus);
+function bgmNote(s,w,st,T){
+  if(!AU.on||!AU.music||w<0)return;const ch=T.prog[Math.floor(s/16)%T.prog.length],i=s%16;
+  const b=T.bass[i];if(b)tone(mf(ch[0]-24+(b>1?12:0)),st*T.bl,T.bw,T.bv,1,w,AU.mus);
+  const l=T.lead[i];if(l>=0){const n=[ch[0],ch[1],ch[2],ch[0]+12,ch[1]+12,ch[2]+12][l];tone(mf(n+12),st*T.ll,T.lw,T.lv,1,w,AU.mus);}
+  if(i===0)ch.forEach(n=>tone(mf(n),st*14,'sine',.06,1,w,AU.mus));
+  const d=T.drum[i];
+  if(d.includes('k'))tone(150,.14,'sine',.55,.3,w,AU.mus);
+  if(d.includes('s'))noise(.12,.2,w,3500,AU.mus);
+  if(d.includes('h'))noise(.04,bgmFast?.12:.07,w,9000,AU.mus);
+  if(bgmFast&&i%4===0)noise(.12,.22,w,400,AU.mus);
 }
 ['pointerdown','touchend','click'].forEach(ev=>addEventListener(ev,auInit,{capture:true}));
 
@@ -500,6 +529,7 @@ function panelTitle(){
   panel(`<h2>MISSION SELECT</h2>
   <p>ロボット部隊を指揮して、敵の本拠地★を占領しよう。</p>
   <ul class="rules"><li>自分のユニットをタップ → 移動先をタップ → 攻撃・占領・待機を選ぶ</li><li>ステーション◎と工廠■を占領すると毎ターン資金が増える</li><li>本拠地と工廠をタップすると新しいロボットを生産できる</li><li>脚で移動力、武器で射程が変わる（ミサイルは隣は撃てず、移動した後も撃てない）</li><li>本拠地の占領は2ターンかかる（途中で動くと最初から）</li><li>${TURN_LIMIT}ターンで決着しなければ、戦力評価で勝敗が決まる</li><li>生産メニューの「ガチャ」（${GACHA_COST}G）は能力1〜99、「超ガチャ」（${GACHA2_COST}G）は能力200〜1000のランダムなロボットが出る。ロボットは右腕・左腕に別々の武器を持てる</li><li>メディックは隣の味方のHPを補給できる。「部隊一覧」で出撃中の全機の能力が見られる</li></ul>
+  ${bgmSelHTML()}
   <label>CPUのつよさ<select data-lv="1">${lvOpts()}</select></label>
   <div class="btns"><button class="go" data-a="cpu">CPUと対戦</button><button data-a="pvp">2人で対戦</button></div>`);
 }
@@ -511,7 +541,7 @@ function panelIdle(){
     if(u)h+=unitBlock(u);
     else h+=`<p>${TER[T.t].n}${TER[T.t].cap?'（'+(T.owner<0?'中立':SIDE[T.owner].n)+'）':''}</p><p class="muted">${TER[T.t].inc?'収入 '+TER[T.t].inc+'G/ターン　':''}${TER[T.t].def?'防御+'+TER[T.t].def:''}${TER[T.t].ev?'回避しやすい':''}${T.t==='x'?'通行できない':''}</p>`;
   } else h+=`<p class="muted">動かすユニットをタップ。本拠地・工廠をタップで生産。</p>`;
-  h+=(cpu[1]?`<label>CPUのつよさ<select data-lv="1">${lvOpts()}</select></label>`:'')+`<div class="btns"><button class="go" data-a="end">ターン終了</button><button data-a="roster">部隊一覧</button><button data-a="surrender">降参</button><button data-a="quit">タイトルへ</button></div>`;
+  h+=bgmSelHTML()+(cpu[1]?`<label>CPUのつよさ<select data-lv="1">${lvOpts()}</select></label>`:'')+`<div class="btns"><button class="go" data-a="end">ターン終了</button><button data-a="roster">部隊一覧</button><button data-a="surrender">降参</button><button data-a="quit">タイトルへ</button></div>`;
   panel(h);
 }
 function panelSelect(){
@@ -545,7 +575,8 @@ function panelProd(){
   <div class="stats"><div>攻撃<b>${cs[0]}</b></div><div>防御<b>${cs[1]}</b></div><div>速度<b>${cs[2]}</b></div><div>重量<b>${cs[3]}</b></div></div>
   <div class="btns"><button class="go" data-a="buyc" aria-disabled="${cc>f}">カスタム機を生産 ${cc}G</button><button data-a="cancel">閉じる</button></div>`);
 }
-$('panel').addEventListener('change',e=>{if(e.target.dataset.lv){aiLv=+e.target.value;try{localStorage.setItem('gw_lv',aiLv);}catch(er){}statusUI();return;}
+$('panel').addEventListener('change',e=>{if(e.target.dataset.bgm){const k=e.target.dataset.bgm;bgmSel[k]=+e.target.value;try{localStorage.setItem('gw_bgm',JSON.stringify(bgmSel));}catch(er){}bgmPrev=k;bgmPrevT=performance.now()+8000;auInit();return;}
+  if(e.target.dataset.lv){aiLv=+e.target.value;try{localStorage.setItem('gw_lv',aiLv);}catch(er){}statusUI();return;}
   const k=e.target.dataset.k;if(k){custom[k]=+e.target.value;panelProd();$('cu-'+k).focus({preventScroll:true});}});
 const onCmd=async e=>{
   const b=e.target.closest('button');if(!b)return;const a=b.dataset.a;
