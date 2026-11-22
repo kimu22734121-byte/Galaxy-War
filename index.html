@@ -36,7 +36,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;fl
 .zoom .tog:disabled{opacity:.35;cursor:default}
 .mapscroll{overflow:auto;max-height:72vh;border-radius:14px}
 .mapinner{position:relative}
-.cmd{position:absolute;z-index:3;display:flex;flex-direction:column;gap:5px;padding:7px;width:158px;background:rgba(14,17,52,.95);border:1px solid var(--violet);border-radius:12px;box-shadow:0 0 14px rgba(179,148,255,.35);overflow:auto}
+.cmd{touch-action:pan-y;overscroll-behavior:contain;position:absolute;z-index:3;display:flex;flex-direction:column;gap:5px;padding:7px;width:158px;background:rgba(14,17,52,.95);border:1px solid var(--violet);border-radius:12px;box-shadow:0 0 14px rgba(179,148,255,.35);overflow:auto}
 .cmd[hidden]{display:none}
 .cs{font-size:12px;line-height:1.4;color:var(--dim);padding:2px 4px 5px;border-bottom:1px solid var(--line);grid-column:1/-1;flex-basis:100%;white-space:nowrap}
 .cs b{display:block;font-size:13px}
@@ -518,14 +518,15 @@ function updateCmd(){
     if(sel&&phase==='select'){const mv=sel.c!==origin[0]||sel.r!==origin[1];if(mv){h='<button class="go" data-a="ok">決定</button><button data-a="cancel">取消</button>';an=[sel.c,sel.r];bar=true;}}
     else if(sel&&phase==='moved'){h=movedBtns()+'<button data-a="end">ターン終了</button>';an=[sel.c,sel.r];}
     else if(sel&&phase==='target'){h='<button data-a="back">戻る</button>';an=[sel.c,sel.r];bar=true;}
-    else if(phase==='idle'&&!sel&&info){const iu=unitAt(info[0],info[1]);h=(iu?unitMini(iu):'')+'<button class="go" data-a="end">ターン終了</button><button data-a="roster">部隊一覧</button>';an=info;}
+    else if(phase==='idle'&&!sel&&info){const iu=unitAt(info[0],info[1]),T0=tiles[info[1]][info[0]],occ=iu&&iu.side===cur&&TER[T0.t].prod&&T0.owner===cur;h=(iu?unitMini(iu):'')+(occ?'<div class="cs" style="white-space:normal">この基地には機体がいるので生産できません。機体が動いて空いてから生産できます</div>':'')+'<button class="go" data-a="end">ターン終了</button><button data-a="roster">部隊一覧</button>';an=info;}
     else if(phase==='prod'&&prodSite){const f=funds[cur];
-      h=PRESETS.map((p,i)=>{const c=costOf(p.cfg);return `<button data-a="buy" data-i="${i}" aria-disabled="${c>f}">${p.n} ${c}G</button>`;}).join('')
-       +`<button class="go" data-a="gacha" data-m="99" aria-disabled="${GACHA_COST>f}">ガチャ ${GACHA_COST}G</button><button class="go" data-a="gacha" data-m="1000" aria-disabled="${GACHA2_COST>f}">超ガチャ ${GACHA2_COST}G</button><button data-a="cancel">閉じる</button><button class="go" data-a="end" style="grid-column:1/-1">ターン終了</button>`;an=prodSite;prod=true;}
+      h='<button data-a="cancel">✕ 閉じる</button><button class="go" data-a="end">ターン終了</button>'
+       +`<button class="go" data-a="gacha" data-m="99" aria-disabled="${GACHA_COST>f}">ガチャ ${GACHA_COST}G</button><button class="go" data-a="gacha" data-m="1000" aria-disabled="${GACHA2_COST>f}">超ガチャ ${GACHA2_COST}G</button>`
+       +PRESETS.map((p,i)=>{const c=costOf(p.cfg);return `<button data-a="buy" data-i="${i}" aria-disabled="${c>f}">${p.n} ${c}G</button>`;}).join('');an=prodSite;prod=true;}
   }
   if(!h||!tiles||cmdOff){el.hidden=true;return;}
   if(sel&&an&&!prod)h=unitMini(sel)+h;
-  el.innerHTML=h;el.hidden=false;el.classList.toggle('cbar',bar);el.classList.toggle('prod',prod);el.style.maxHeight=Math.max(120,CH-8)+'px';
+  el.innerHTML=h;el.hidden=false;el.classList.toggle('cbar',bar);el.classList.toggle('prod',prod);el.style.maxHeight=Math.max(110,Math.min(CH-8,$('mapscroll').clientHeight-8))+'px';
   const [x,y]=ctrL(an[0],an[1]),w=el.offsetWidth,hh=el.offsetHeight;
   let left,top;
   if(bar){left=Math.max(4,Math.min(CW-w-4,x-w/2));top=y-S*1.35-hh;if(top<4)top=y+S*.95;}
@@ -579,7 +580,7 @@ function panelTarget(){
 function panelProd(){
   const f=funds[cur];
   const cc=costOf(custom),cs=statsOf(custom);
-  panel(`<h2>生産（所持 ${f}G）</h2><div class="grid2">${PRESETS.map((p,i)=>{const c=costOf(p.cfg);return `<button class="preset" data-a="buy" data-i="${i}" aria-disabled="${c>f}">${p.n} ${c}G<span>${PART_N.weap[p.cfg.weap]}${p.cfg.weap2>=0?'＋'+PART_N.weap[p.cfg.weap2]:''}・${PART_N.legs[p.cfg.legs]}</span></button>`}).join('')}</div>
+  panel(`<div class="btns"><button data-a="cancel">✕ 閉じる</button><button class="go" data-a="end">ターン終了</button></div><h2>生産（所持 ${f}G）</h2><div class="grid2">${PRESETS.map((p,i)=>{const c=costOf(p.cfg);return `<button class="preset" data-a="buy" data-i="${i}" aria-disabled="${c>f}">${p.n} ${c}G<span>${PART_N.weap[p.cfg.weap]}${p.cfg.weap2>=0?'＋'+PART_N.weap[p.cfg.weap2]:''}・${PART_N.legs[p.cfg.legs]}</span></button>`}).join('')}</div>
   <h2>ガチャ</h2><p class="muted">能力（攻撃・防御・速度・重量）が1〜99ランダム。右腕・左腕の武器もランダム！</p><div class="btns"><button class="go" data-a="gacha" data-m="99" aria-disabled="${GACHA_COST>f}">ガチャを回す ${GACHA_COST}G</button></div>
   <h2>超ガチャ</h2><p class="muted">能力が200〜1000のランダム！とんでもない機体が出る。右腕・左腕の武器もランダム。</p><div class="btns"><button class="go" data-a="gacha" data-m="1000" aria-disabled="${GACHA2_COST>f}">超ガチャを回す ${GACHA2_COST}G</button></div>
   <h2>カスタム</h2><div class="grid2">${KEYS.map(k=>`<label>${{head:'頭',body:'胴体',weap:'右腕の武器',legs:'脚'}[k]}<select id="cu-${k}" data-k="${k}">${PART_N[k].map((n,i)=>`<option value="${i}" ${custom[k]===i?'selected':''}>${n}</option>`).join('')}</select></label>`).join('')}<label>左腕の武器<select id="cu-weap2" data-k="weap2"><option value="-1" ${custom.weap2<0?'selected':''}>なし</option>${PART_N.weap.map((n,i)=>`<option value="${i}" ${custom.weap2===i?'selected':''}>${n}</option>`).join('')}</select></label></div>
@@ -605,6 +606,7 @@ const onCmd=async e=>{
   else if(a==='cap'){const u=sel;sel=null;phase='idle';await capture(u);if(!over)panelIdle();}
   else if(a==='roster'){SFX.select();phase='idle';panelRoster();}
   else if(a==='focus'){const t=units.find(x=>x.id===+b.dataset.id);if(t){SFX.select();info=[t.c,t.r];phase='idle';panelIdle();}}
+  else if((a==='gacha'||a==='buy'||a==='buyc')&&!prodSite){SFX.cancel();}
   else if(a==='gacha'){
     const gm=+b.dataset.m||99,gc=gm>99?GACHA2_COST:GACHA_COST;
     if(gc>funds[cur]){SFX.cancel();const t0=b.innerHTML;b.textContent='資金が足りません';setTimeout(()=>{if(b.isConnected)b.innerHTML=t0;},1200);return;}
