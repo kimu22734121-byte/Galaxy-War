@@ -1,5 +1,9 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Galaxy War</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
 <style>
@@ -17,7 +21,7 @@ body{font-family:var(--body);font-size:15px;line-height:1.6}
 header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .mark{font-family:var(--display);font-weight:700;font-size:clamp(24px,6.5vw,34px);letter-spacing:.08em;line-height:1;color:var(--blue);text-shadow:0 0 12px rgba(94,242,255,.5)}
 .mark span{color:var(--pink);text-shadow:0 0 12px rgba(255,92,225,.5)}
-.tog{font-family:var(--display);font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer}
+.tog{font-family:var(--display);font-size:13px;padding:9px 14px;min-height:40px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer}
 .tog[aria-pressed="true"]{color:var(--amber);border-color:rgba(255,215,94,.5)}
 .status{display:flex;gap:8px;flex-wrap:wrap;font-family:var(--display);font-size:13px;font-variant-numeric:tabular-nums}
 .pill{border:1px solid var(--line);border-radius:999px;padding:3px 11px;color:var(--dim)}
@@ -29,6 +33,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;fl
 .banner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;border-radius:14px}
 .banner div{font-family:var(--display);font-weight:700;font-size:clamp(22px,6vw,32px);letter-spacing:.1em;padding:10px 22px;border-radius:10px;background:rgba(11,14,42,.82);border:1px solid currentColor;text-shadow:0 0 12px currentColor}
 .banner.tap{pointer-events:auto;cursor:pointer}
+.banner[hidden],.battle[hidden]{display:none}
 .banner small{display:block;font-family:var(--body);font-size:12px;font-weight:400;letter-spacing:0;color:var(--dim);text-shadow:none;text-align:center;margin-top:4px}
 .battle{position:absolute;left:0;right:0;top:0;height:max(100%,320px);z-index:5;border-radius:14px;overflow:hidden;background:#121640;border:1px solid var(--violet);cursor:pointer}
 .battle canvas{display:block}
@@ -50,7 +55,6 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;fl
 button{font-family:var(--display);font-size:14px;font-weight:700;letter-spacing:.05em;border-radius:10px;padding:10px 16px;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--ink)}
 button:hover{border-color:var(--violet)}
 button.go{border-color:var(--blue);color:#071a22;background:var(--blue);box-shadow:0 0 12px rgba(94,242,255,.4)}
-button.warn{border-color:var(--red);color:var(--red)}
 button:focus-visible,select:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
 .stats b{display:block;font-family:var(--display);font-size:16px;color:var(--ink);font-weight:500}
@@ -59,14 +63,15 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--blue);outline-
 .preset span{font-family:var(--body);font-size:12px;color:var(--dim);font-weight:400;letter-spacing:0}
 .preset[aria-disabled="true"]{opacity:.45}
 label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--dim)}
-select{font:inherit;font-size:14px;color:var(--ink);background:var(--void);border:1px solid var(--line);border-radius:8px;padding:7px 9px;min-width:0}
+select{font:inherit;font-size:16px;color:var(--ink);background:var(--void);border:1px solid var(--line);border-radius:8px;padding:7px 9px;min-width:0}
 ul.rules{margin:0;padding-left:1.2em;color:var(--dim);font-size:13px;display:flex;flex-direction:column;gap:2px}
 .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--dim)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 @media (max-width:420px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-reduced-motion:reduce){.pop{animation-duration:.01s}}
 </style>
-
+</head>
+<body>
 <div class="shell">
   <header>
     <div class="mark">GALAXY <span>WAR</span></div>
@@ -145,7 +150,7 @@ const PROG=[[57,60,64],[53,57,60],[48,52,55],[55,59,62]];
 let bgmStep=0,bgmNext=0,bgmFast=false;
 function startBgm(){
   bgmNext=AU.ctx.currentTime+.15;
-  setInterval(()=>{const c=AU.ctx;if(!c)return;const st=60/(bgmFast?140:108)/2;
+  setInterval(()=>{const c=AU.ctx;if(!c)return;if(!AU.on||!AU.music){bgmNext=c.currentTime+.15;return;}const st=60/(bgmFast?140:108)/2;
     while(bgmNext<c.currentTime+.25){bgmNote(bgmStep,bgmNext-c.currentTime,st);bgmNext+=st;bgmStep++;}},60);
 }
 function bgmNote(s,w,st){
@@ -156,7 +161,7 @@ function bgmNote(s,w,st){
   if(s%2===1)noise(.04,bgmFast?.12:.07,w,9000,AU.mus);
   if(bgmFast&&s%4===0)noise(.12,.25,w,400,AU.mus);
 }
-addEventListener('pointerdown',auInit,{capture:true});
+['pointerdown','touchend','click'].forEach(ev=>addEventListener(ev,auInit,{capture:true}));
 
 /* ---------- data ---------- */
 const COLS=11,ROWS=9;
@@ -181,19 +186,24 @@ const moveOf=u=>Math.min(6,Math.max(2,Math.floor(u.st[2]/2)+1));
 const maxHp=st=>Math.round(70+st[3]*6+st[1]*2);
 
 /* ---------- state ---------- */
-let tiles,units,cur,turn,funds,cpu,mode='title',phase='idle',sel=null,R=null,origin=null,targets=[],busy=false,over=false,uid=0,prodSite=null,anim=true,info=null,hiliteTargets=null;
+let tiles,units,cur,turn,funds,cpu,mode='title',phase='idle',sel=null,R=null,origin=null,targets=[],busy=false,over=false,uid=0,prodSite=null,anim=true,info=null;
 const custom={head:0,body:0,weap:0,legs:0};
 
 function newGame(vsCpu){
-  tiles=MAP.map(row=>[...row].map(ch=>({t:ch==='B'||ch==='R'?'H':ch,owner:ch==='B'?0:ch==='R'?1:-1})));
+  tiles=initTiles();
   units=[];funds=[800,800];cur=0;turn=1;cpu=[false,!!vsCpu];over=false;sel=null;phase='idle';
   spawn(0,PRESETS[0].cfg,PRESETS[0].n,1,0);spawn(0,PRESETS[1].cfg,PRESETS[1].n,0,1);
   spawn(1,PRESETS[0].cfg,PRESETS[0].n,9,8);spawn(1,PRESETS[1].cfg,PRESETS[1].n,10,7);
   units.forEach(u=>u.acted=false);
   mode='play';beginTurn();
 }
-function spawn(side,cfg,name,c,r){const st=statsOf(cfg);const u={id:++uid,side,cfg:{...cfg},name,st,max:maxHp(st),c,r,acted:true};u.hp=u.max;units.push(u);return u;}
+function spawn(side,cfg,name,c,r){const st=statsOf(cfg);const u={id:++uid,side,cfg:{...cfg},name,st,max:maxHp(st),c,r,acted:true,moved:false};u.hp=u.max;units.push(u);return u;}
 const unitAt=(c,r)=>units.find(u=>u.c===c&&u.r===r);
+const TURN_LIMIT=30;
+const initTiles=()=>MAP.map(row=>[...row].map(ch=>({t:ch==='B'||ch==='R'?'H':ch,owner:ch==='B'?0:ch==='R'?1:-1})));
+function resetBoard(){mode='title';tiles=initTiles();units=[];cur=0;turn=1;funds=[0,0];cpu=[false,true];sel=null;phase='idle';info=null;targets=[];over=false;busy=false;prodSite=null;bgmFast=false;$('banner').hidden=true;$('banner').onclick=null;}
+function hqOf(s){for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(tiles[r][c].t==='H'&&tiles[r][c].owner===s)return [c,r];return null;}
+function scoreOf(s){return funds[s]+units.filter(u=>u.side===s).reduce((a,u)=>a+Math.round(costOf(u.cfg)*u.hp/u.max),0)+tiles.flat().filter(t=>TER[t.t].cap&&t.owner===s).length*200;}
 
 /* ---------- hex math ---------- */
 function nbrs(c,r){const d=r&1?[[1,0],[1,-1],[0,-1],[-1,0],[0,1],[1,1]]:[[1,0],[0,-1],[-1,-1],[-1,0],[-1,1],[0,1]];return d.map(([a,b])=>[c+a,r+b]).filter(([x,y])=>x>=0&&y>=0&&x<COLS&&y<ROWS);}
@@ -212,6 +222,7 @@ function reach(u){
 }
 function pathTo(R,from,to){const p=[];let k=to;while(k&&k!==from){p.unshift(UK(k));k=R.prev.get(k);}return p;}
 function inRange(u,c,r,e){const d=dist(c,r,e.c,e.r),g=RANGE[u.cfg.weap];return d>=g[0]&&d<=g[1];}
+const canFire=u=>!(u.cfg.weap===1&&u.moved);
 const enemiesInRange=(u,c,r)=>units.filter(e=>e.side!==u.side&&inRange(u,c,r,e));
 
 /* ---------- combat ---------- */
@@ -241,7 +252,7 @@ const ctr=(c,r)=>[PAD+S*SQ3*(c+.5*(r&1))+S*SQ3/2,PAD+S+1.5*S*r];
 function hexPath(x,y,s){ctx.beginPath();for(let i=0;i<6;i++){const a=PI/180*(60*i-30);ctx.lineTo(x+s*Math.cos(a),y+s*Math.sin(a));}ctx.closePath();}
 const ownerCss=o=>o<0?'#a2a4d6':SIDE[o].css;
 function rgba(hex,a){const n=parseInt(hex.slice(1),16);return `rgba(${n>>16},${n>>8&255},${n&255},${a})`;}
-const pops=[];let tNow=0;
+let tNow=0;
 function draw(){
   ctx.clearRect(0,0,CW,CH);ctx.fillStyle='#0b0e2a';ctx.fillRect(0,0,CW,CH);
   ctx.fillStyle='#e9e6ff';bgStars.forEach(([x,y,z])=>{ctx.globalAlpha=.25+z*.5;ctx.fillRect(x*CW,y*CH,1.2,1.2);});ctx.globalAlpha=1;
@@ -259,15 +270,15 @@ function draw(){
     if(T.t==='s'){ctx.strokeStyle=oc;ctx.beginPath();ctx.arc(x,y,S*.42,0,7);ctx.stroke();ctx.beginPath();ctx.arc(x,y,S*.16,0,7);ctx.stroke();}
     if(T.t==='f'){ctx.strokeStyle=oc;ctx.strokeRect(x-S*.38,y-S*.38,S*.76,S*.76);ctx.strokeRect(x-S*.18,y-S*.18,S*.36,S*.36);}
     if(T.t==='H'){ctx.strokeStyle=oc;ctx.lineWidth=2;ctx.shadowColor=oc;ctx.shadowBlur=8;ctx.beginPath();for(let i=0;i<10;i++){const a=-PI/2+i*PI/5,rr=i%2?S*.22:S*.52;ctx.lineTo(x+rr*Math.cos(a),y+rr*Math.sin(a));}ctx.closePath();ctx.stroke();ctx.shadowBlur=0;hexPath(x,y,S*.97);ctx.stroke();}
+    if(T.cp){ctx.fillStyle='#ffd75e';ctx.font='700 '+Math.round(S*.38)+'px sans-serif';ctx.textAlign='center';ctx.fillText('占領中',x,y-S*.62);}
   }
   if(sel&&phase==='select'&&R){
     for(const k of R.set){const [c,r]=UK(k),[x,y]=ctr(c,r);hexPath(x,y,S*.9);ctx.fillStyle=rgba(SIDE[sel.side].css,.2);ctx.fill();ctx.strokeStyle=rgba(SIDE[sel.side].css,.55);ctx.lineWidth=1;ctx.stroke();}
   }
-  const tg=phase==='target'||phase==='moved'?targets:(hiliteTargets||[]);
+  const tg=phase==='target'||phase==='moved'?targets:[];
   tg.forEach(e=>{const [x,y]=ctr(e.c,e.r);hexPath(x,y,S*.9);ctx.fillStyle='rgba(255,106,77,.22)';ctx.fill();ctx.strokeStyle='#ff6a4d';ctx.lineWidth=phase==='target'?2.2:1.2;ctx.stroke();});
   if(info&&!sel){const [x,y]=ctr(info[0],info[1]);hexPath(x,y,S*.95);ctx.strokeStyle='#ffd75e';ctx.lineWidth=1.6;ctx.stroke();}
   units.forEach(drawUnit);
-  pops.forEach(p=>{p.t-=1/60;});for(let i=pops.length-1;i>=0;i--)if(pops[i].t<=0)pops.splice(i,1);
 }
 function drawUnit(u){
   const [cx,cy]=u.px?u.px:ctr(u.c,u.r),col=SIDE[u.side].css,s=S;
@@ -289,12 +300,16 @@ function mapPop(c,r,text,color){
   const [x,y]=ctr(c,r);const el=document.createElement('div');el.className='pop';el.textContent=text;el.style.color=color;
   el.style.left=x+'px';el.style.top=(y-S*.4)+'px';$('mapwrap').appendChild(el);setTimeout(()=>el.remove(),950);
 }
-function loop(now){tNow=now/1000;draw();if(bR&&!$('battle').hidden)battleFrame();requestAnimationFrame(loop);}
+let lastDraw=0;
+function tick(now){tNow=now/1000;if(bR&&!$('battle').hidden)battleFrame();else if(now-lastDraw>=30){lastDraw=now;draw();}}
+function loop(now){tick(now);requestAnimationFrame(loop);}
+setInterval(()=>{if(document.hidden)tick(performance.now());},100);
+const nextFrame=cb=>document.hidden?setTimeout(cb,50):requestAnimationFrame(cb);
 
 /* ---------- UI ---------- */
 function statusUI(){
   if(mode==='title'){$('status').innerHTML='';return;}
-  $('status').innerHTML=`<span class="pill">TURN ${turn}</span>`+[0,1].map(s=>`<span class="pill ${SIDE[s].cls} ${s===cur?'on':''}">${SIDE[s].n}${cpu[s]?'(CPU)':''} ${funds[s]}G</span>`).join('');
+  $('status').innerHTML=`<span class="pill">TURN ${turn}/${TURN_LIMIT}</span>`+[0,1].map(s=>`<span class="pill ${SIDE[s].cls} ${s===cur?'on':''}">${SIDE[s].n}${cpu[s]?'(CPU)':''} ${funds[s]}G</span>`).join('');
 }
 function unitBlock(u){
   const g=RANGE[u.cfg.weap],T=TER[tiles[u.r][u.c].t];
@@ -303,11 +318,11 @@ function unitBlock(u){
   <div class="stats"><div>攻撃<b>${u.st[0]}</b></div><div>防御<b>${u.st[1]}</b></div><div>移動<b>${moveOf(u)}</b></div><div>射程<b>${g[0]===g[1]?g[0]:g[0]+'-'+g[1]}</b></div></div>
   <p class="muted">地形：${T.n}${T.def?'（防御+'+T.def+'）':''}${T.ev?'（回避+）':''}</p>`;
 }
-function panel(html){$('panel').innerHTML=html;}
+function panel(html){const P=$('panel'),had=P.contains(document.activeElement);P.innerHTML=html;if(had){const t=P.querySelector('button.go,button');if(t)t.focus({preventScroll:true});}}
 function panelTitle(){
   panel(`<h2>MISSION SELECT</h2>
   <p>ロボット部隊を指揮して、敵の本拠地★を占領しよう。</p>
-  <ul class="rules"><li>自分のユニットをタップ → 移動先をタップ → 攻撃・占領・待機を選ぶ</li><li>ステーション◎と工廠■を占領すると毎ターン資金が増える</li><li>本拠地と工廠をタップすると新しいロボットを生産できる</li><li>脚で移動力、武器で射程が変わる（ミサイルは隣は撃てない）</li></ul>
+  <ul class="rules"><li>自分のユニットをタップ → 移動先をタップ → 攻撃・占領・待機を選ぶ</li><li>ステーション◎と工廠■を占領すると毎ターン資金が増える</li><li>本拠地と工廠をタップすると新しいロボットを生産できる</li><li>脚で移動力、武器で射程が変わる（ミサイルは隣は撃てず、移動した後も撃てない）</li><li>本拠地の占領は2ターンかかる（途中で動くと最初から）</li><li>${TURN_LIMIT}ターンで決着しなければ、戦力評価で勝敗が決まる</li></ul>
   <div class="btns"><button class="go" data-a="cpu">CPUと対戦</button><button data-a="pvp">2人で対戦</button></div>`);
 }
 function panelIdle(){
@@ -318,15 +333,15 @@ function panelIdle(){
     if(u)h+=unitBlock(u);
     else h+=`<p>${TER[T.t].n}${TER[T.t].cap?'（'+(T.owner<0?'中立':SIDE[T.owner].n)+'）':''}</p><p class="muted">${TER[T.t].inc?'収入 '+TER[T.t].inc+'G/ターン　':''}${TER[T.t].def?'防御+'+TER[T.t].def:''}${TER[T.t].ev?'回避しやすい':''}${T.t==='x'?'通行できない':''}</p>`;
   } else h+=`<p class="muted">動かすユニットをタップ。本拠地・工廠をタップで生産。</p>`;
-  h+=`<div class="btns"><button class="go" data-a="end">ターン終了</button><button data-a="quit">タイトルへ</button></div>`;
+  h+=`<div class="btns"><button class="go" data-a="end">ターン終了</button><button data-a="surrender">降参</button><button data-a="quit">タイトルへ</button></div>`;
   panel(h);
 }
 function panelSelect(){panel(`<h2>移動先を選択</h2>${unitBlock(sel)}<p class="muted">光っているマスをタップ（同じマスで移動しない）</p><div class="btns"><button data-a="cancel">キャンセル</button></div>`);}
 function panelMoved(){
   const T=tiles[sel.r][sel.c],canCap=TER[T.t].cap&&T.owner!==sel.side;
-  panel(`<h2>行動を選択</h2>${unitBlock(sel)}<div class="btns">
+  panel(`<h2>行動を選択</h2>${unitBlock(sel)}${sel.cfg.weap===1&&sel.moved?'<p class="muted">ミサイルは移動後に撃てません</p>':''}<div class="btns">
   ${targets.length?'<button class="go" data-a="atk">攻撃（'+targets.length+'）</button>':''}
-  ${canCap?'<button class="go" data-a="cap">占領</button>':''}
+  ${canCap?'<button class="go" data-a="cap">占領'+(T.t==='H'?(T.cp&&T.cp.id===sel.id?'（完了）':'（1/2）'):'')+'</button>':''}
   <button data-a="wait">待機</button><button data-a="undo">戻る</button></div>`);
 }
 function panelTarget(){panel(`<h2>攻撃目標を選択</h2><p class="muted">赤く光る敵をタップ</p>${targets.map(e=>{const p=Math.round(expDmg(sel,e,e.c,e.r));return `<p class="muted">${e.name}：予想ダメージ 約${p}（HP ${e.hp}）</p>`}).join('')}<div class="btns"><button data-a="back">戻る</button></div>`);}
@@ -338,22 +353,23 @@ function panelProd(){
   <div class="stats"><div>攻撃<b>${cs[0]}</b></div><div>防御<b>${cs[1]}</b></div><div>速度<b>${cs[2]}</b></div><div>重量<b>${cs[3]}</b></div></div>
   <div class="btns"><button class="go" data-a="buyc" aria-disabled="${cc>f}">カスタム機を生産 ${cc}G</button><button data-a="cancel">閉じる</button></div>`);
 }
-$('panel').addEventListener('change',e=>{const k=e.target.dataset.k;if(k){custom[k]=+e.target.value;panelProd();}});
+$('panel').addEventListener('change',e=>{const k=e.target.dataset.k;if(k){custom[k]=+e.target.value;panelProd();$('cu-'+k).focus({preventScroll:true});}});
 $('panel').addEventListener('click',async e=>{
   const b=e.target.closest('button');if(!b)return;const a=b.dataset.a;
   if(a==='cpu'||a==='pvp'){newGame(a==='cpu');return;}
   if(busy)return;
   if(a==='end'){SFX.select();endTurn();}
-  else if(a==='quit'){mode='title';sel=null;statusUI();panelTitle();}
+  else if(a==='quit'){resetBoard();statusUI();panelTitle();}
+  else if(a==='surrender'){if(confirm(SIDE[cur].n+'が降参しますか？'))showResult(1-cur,SIDE[cur].n+'が降参した');}
   else if(a==='cancel'){SFX.cancel();sel=null;phase='idle';prodSite=null;panelIdle();}
   else if(a==='atk'){SFX.select();phase='target';panelTarget();}
   else if(a==='back'){phase='moved';panelMoved();}
   else if(a==='wait'){SFX.select();sel.acted=true;sel=null;phase='idle';panelIdle();}
-  else if(a==='undo'){SFX.cancel();sel.c=origin[0];sel.r=origin[1];R=reach(sel);phase='select';targets=[];panelSelect();}
+  else if(a==='undo'){SFX.cancel();sel.c=origin[0];sel.r=origin[1];sel.moved=false;R=reach(sel);phase='select';targets=[];panelSelect();}
   else if(a==='cap'){const u=sel;sel=null;phase='idle';await capture(u);if(!over)panelIdle();}
   else if(a==='buy'||a==='buyc'){
     const cfg=a==='buy'?PRESETS[+b.dataset.i].cfg:{...custom},name=a==='buy'?PRESETS[+b.dataset.i].n:'カスタム機',c=costOf(cfg);
-    if(c>funds[cur]){SFX.cancel();b.textContent='資金が足りません';return;}
+    if(c>funds[cur]){SFX.cancel();const t0=b.innerHTML;b.textContent='資金が足りません';setTimeout(()=>{if(b.isConnected)b.innerHTML=t0;},1200);return;}
     funds[cur]-=c;spawn(cur,cfg,name,prodSite[0],prodSite[1]);SFX.produce();mapPop(prodSite[0],prodSite[1],'発進',SIDE[cur].css);
     prodSite=null;phase='idle';statusUI();panelIdle();
   }
@@ -374,44 +390,52 @@ cv.addEventListener('click',async e=>{
     if(u===sel){SFX.select();origin=[sel.c,sel.r];afterMove();return;}
     if(R.set.has(k)&&!u){origin=[sel.c,sel.r];busy=true;await walk(sel,pathTo(R,K(sel.c,sel.r),k));busy=false;afterMove();return;}
   }
-  hiliteTargets=null;
   if(u&&u.side===cur&&!u.acted){SFX.select();sel=u;R=reach(u);phase='select';info=null;panelSelect();return;}
   const T=tiles[r][c];
   if(!u&&TER[T.t].prod&&T.owner===cur){SFX.select();sel=null;phase='prod';prodSite=[c,r];info=[c,r];panelProd();return;}
   sel=null;phase='idle';info=[c,r];
-  if(u&&u.side!==cur)hiliteTargets=null;
   panelIdle();
 });
-function afterMove(){targets=enemiesInRange(sel,sel.c,sel.r);phase='moved';panelMoved();}
+function afterMove(){targets=canFire(sel)?enemiesInRange(sel,sel.c,sel.r):[];phase='moved';panelMoved();}
 async function walk(u,path){
+  if(path.length)u.moved=true;
   for(const [c,r] of path){const a=ctr(u.c,u.r),b=ctr(c,r);const t0=performance.now();
-    await new Promise(res=>{const st=()=>{const k=Math.min(1,(performance.now()-t0)/110);u.px=[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k];if(k<1)requestAnimationFrame(st);else res();};st();});
+    await new Promise(res=>{const st=()=>{const k=Math.min(1,(performance.now()-t0)/110);u.px=[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k];if(k<1)nextFrame(st);else res();};st();});
     u.c=c;u.r=r;SFX.step();}
   u.px=null;
 }
 async function capture(u){
-  const T=tiles[u.r][u.c];T.owner=u.side;u.acted=true;SFX.capture();mapPop(u.c,u.r,'占領',SIDE[u.side].css);statusUI();
+  const T=tiles[u.r][u.c];u.acted=true;
+  if(T.t==='H'&&!(T.cp&&T.cp.id===u.id)){T.cp={id:u.id};SFX.select();mapPop(u.c,u.r,'占領中 1/2',SIDE[u.side].css);statusUI();await sleep(300);return;}
+  T.cp=null;T.owner=u.side;SFX.capture();mapPop(u.c,u.r,'占領',SIDE[u.side].css);statusUI();
   await sleep(300);checkWin();
 }
 async function doAttack(a,d){
   busy=true;a.acted=true;
   const evs=resolve(a,d);
-  if(anim)await playBattle(a,d,evs);
+  let fx=anim;
+  if(fx){try{await playBattle(a,d,evs);}catch(err){console.error(err);fx=false;anim=false;bR=null;const bt=$('battle');bt.hidden=true;const cvs=bt.querySelector('canvas');if(cvs)cvs.remove();bgmFast=false;const t=$('animTog');t.setAttribute('aria-pressed',false);t.textContent='戦闘アニメ OFF（使用不可）';}}
   for(const ev of evs){
     ev.def.hp=Math.max(0,ev.def.hp-ev.dmg);
-    if(!anim){SFX[WEAPON_SFX[ev.att.cfg.weap]]();await sleep(250);ev.ev?SFX.miss():SFX.hit();mapPop(ev.def.c,ev.def.r,ev.ev?'MISS':(ev.crit?'!':'')+ev.dmg,ev.ev?'#a2a4d6':SIDE[ev.att.side].css);await sleep(450);}
+    if(!fx){SFX[WEAPON_SFX[ev.att.cfg.weap]]();await sleep(250);ev.ev?SFX.miss():SFX.hit();mapPop(ev.def.c,ev.def.r,ev.ev?'MISS':(ev.crit?'!':'')+ev.dmg,ev.ev?'#a2a4d6':SIDE[ev.att.side].css);await sleep(450);}
   }
-  for(const u of [a,d])if(u.hp<=0){if(!anim)SFX.boom();units.splice(units.indexOf(u),1);mapPop(u.c,u.r,'撃破','#ffd75e');}
+  for(const u of [a,d])if(u.hp<=0){if(!fx)SFX.boom();units.splice(units.indexOf(u),1);mapPop(u.c,u.r,'撃破','#ffd75e');}
   busy=false;statusUI();checkWin();
 }
+function showResult(w,msg){
+  over=true;bgmFast=false;sel=null;phase='idle';
+  const btns=`<div class="btns"><button class="go" data-a="${cpu[1]?'cpu':'pvp'}">もう一度</button><button data-a="quit">タイトルへ</button></div>`;
+  if(w<0){SFX.win();bannerShow(`<div style="color:var(--amber)">引き分け<small>${msg}</small></div>`,false,0);panel(`<h2 style="color:var(--amber)">引き分け</h2><p class="muted">${msg}</p>${btns}`);return;}
+  (cpu[w]?SFX.lose:SFX.win)();
+  bannerShow(`<div style="color:${SIDE[w].css}">${SIDE[w].n} 勝利<small>${msg}</small></div>`,false,0);
+  panel(`<h2 style="color:${SIDE[w].css}">${SIDE[w].n}の勝利</h2><p class="muted">${turn}ターンで決着しました。${msg}</p>${btns}`);
+}
 function checkWin(){
+  if(over)return true;
   for(const s of [0,1]){
     const hq=tiles.flat().find(t=>t.t==='H'&&t.owner===s);
     const lost=!hq||(!units.some(u=>u.side===s)&&funds[s]<Math.min(...PRESETS.map(p=>costOf(p.cfg))));
-    if(lost){over=true;const w=1-s;bgmFast=false;(cpu[w]?SFX.lose:SFX.win)();
-      bannerShow(`<div style="color:${SIDE[w].css}">${SIDE[w].n} 勝利<small>${hq?'敵部隊を全滅させた':'敵の本拠地を占領した'}</small></div>`,false,0);
-      panel(`<h2 style="color:${SIDE[w].css}">${SIDE[w].n}の勝利</h2><p class="muted">${turn}ターンで決着しました。</p><div class="btns"><button class="go" data-a="${cpu[1]?'cpu':'pvp'}">もう一度</button><button data-a="quit">タイトルへ</button></div>`);
-      return true;}
+    if(lost){showResult(1-s,hq?'敵部隊を全滅させた':'敵の本拠地を占領した');return true;}
   }
   return false;
 }
@@ -422,15 +446,19 @@ function bannerShow(html,tap,ms){
 async function beginTurn(){
   $('banner').hidden=true;
   let inc=0;tiles.flat().forEach(t=>{if(t.owner===cur&&TER[t.t].inc)inc+=TER[t.t].inc;});funds[cur]+=inc;
-  units.forEach(u=>{if(u.side===cur)u.acted=false;});
+  tiles.forEach((row,r)=>row.forEach((T,c)=>{if(T.cp){const o=unitAt(c,r);if(!o||o.id!==T.cp.id)T.cp=null;}}));
+  units.forEach(u=>{if(u.side===cur){u.acted=false;u.moved=false;}});
   sel=null;phase='idle';info=null;statusUI();
+  if(checkWin())return;
   const hot=!cpu[0]&&!cpu[1];
   busy=true;panelIdle();SFX.turn();
   await bannerShow(`<div style="color:${SIDE[cur].css}">${SIDE[cur].n}のターン<small>収入 +${inc}G${hot?'　タップで開始':''}</small></div>`,hot,hot?0:1100);
   busy=false;
   if(cpu[cur])runAI();else panelIdle();
 }
-function endTurn(){if(over)return;sel=null;phase='idle';cur=1-cur;if(cur===0)turn++;beginTurn();}
+function endTurn(){if(over)return;sel=null;phase='idle';cur=1-cur;if(cur===0)turn++;
+  if(turn>TURN_LIMIT){const a=scoreOf(0),b=scoreOf(1);showResult(a===b?-1:a>b?0:1,`${TURN_LIMIT}ターン経過：戦力評価 ${a} 対 ${b}`);return;}
+  beginTurn();}
 
 /* ---------- CPU ---------- */
 async function runAI(){
@@ -443,9 +471,10 @@ async function runAI(){
 async function aiUnit(u){
   const RR=reach(u);let best=null,cap=null;
   const foes=units.filter(x=>x.side!==u.side);
+  const hq=hqOf(u.side),threats=hq?foes.filter(e=>dist(e.c,e.r,hq[0],hq[1])<=moveOf(e)+2):[];
   for(const k of RR.set){const [c,r]=UK(k),T=tiles[r][c];
-    for(const e of foes){if(!inRange(u,c,r,e))continue;
-      const ex=expDmg(u,e,e.c,e.r);let sc=ex+(ex>=e.hp?60:0)+TER[T.t].def*2;
+    for(const e of foes){if(!inRange(u,c,r,e))continue;if(u.cfg.weap===1&&(c!==u.c||r!==u.r))continue;
+      const ex=expDmg(u,e,e.c,e.r);let sc=ex+(ex>=e.hp?60:0)+TER[T.t].def*2+(threats.includes(e)?25:0);
       if(ex<e.hp&&inRange(e,e.c,e.r,{c,r}))sc-=expDmg(e,u,c,r)*.6;
       if(!best||sc>best.sc)best={sc,c,r,e};}
     if(TER[T.t].cap&&T.owner!==u.side){const sc=T.t==='H'?999:T.owner>=0?38:30;if(!cap||sc>cap.sc)cap={sc,c,r};}
@@ -454,7 +483,7 @@ async function aiUnit(u){
   if(cap&&(cap.sc>=999||!best||best.sc<cap.sc)){await walk(u,pathTo(RR,K(u.c,u.r),K(cap.c,cap.r)));sel=null;phase='idle';await capture(u);return;}
   if(best&&best.sc>0){await walk(u,pathTo(RR,K(u.c,u.r),K(best.c,best.r)));sel=null;phase='idle';await doAttack(u,best.e);busy=true;return;}
   const goals=[];tiles.forEach((row,r)=>row.forEach((T,c)=>{if(TER[T.t].cap&&T.owner!==u.side)goals.push([c,r,T.t==='H'?0:2]);}));
-  foes.forEach(e=>goals.push([e.c,e.r,1]));
+  foes.forEach(e=>goals.push([e.c,e.r,threats.includes(e)?-2:1]));
   let tgt=null,bd=1e9;
   for(const k of RR.set){const [c,r]=UK(k);let m=1e9;goals.forEach(g=>m=Math.min(m,dist(c,r,g[0],g[1])+g[2]*.5));if(TER[tiles[r][c].t].prod&&tiles[r][c].owner===u.side)m+=3;if(m<bd){bd=m;tgt=[c,r];}}
   if(tgt&&(tgt[0]!==u.c||tgt[1]!==u.r))await walk(u,pathTo(RR,K(u.c,u.r),K(tgt[0],tgt[1])));
@@ -464,7 +493,7 @@ function aiProduce(){
   tiles.forEach((row,r)=>row.forEach((T,c)=>{
     if(!TER[T.t].prod||T.owner!==cur||unitAt(c,r))return;
     const opts=PRESETS.filter(p=>costOf(p.cfg)<=funds[cur]-(units.filter(u=>u.side===cur).length>5?400:0));
-    if(!opts.length)return;const p=opts[rnd(opts.length)];funds[cur]-=costOf(p.cfg);spawn(cur,p.cfg,p.n,c,r);mapPop(c,r,'発進',SIDE[cur].css);
+    if(!opts.length)return;const tw=opts.map(q=>{const z=statsOf(q.cfg);return z[0]+z[1];}),sum=tw.reduce((x,y)=>x+y,0);let xr=Math.random()*sum,pi=0;while(pi<opts.length-1&&(xr-=tw[pi])>0)pi++;const p=opts[pi];funds[cur]-=costOf(p.cfg);spawn(cur,p.cfg,p.n,c,r);mapPop(c,r,'発進',SIDE[cur].css);
   }));statusUI();
 }
 
@@ -511,16 +540,17 @@ function bHud(){const [A,Bb]=bF;
   [[A,'A'],[Bb,'B']].forEach(([f,k])=>{$('bn'+k).textContent=SIDE[f.u.side].n+' '+f.u.name;$('bh'+k).textContent=Math.max(0,f.hp);$('bb'+k).style.width=Math.max(0,f.hp/f.u.max*100)+'%';});}
 const bsl=ms=>sleep(skip?0:ms);
 function bodyPos(f){return new THREE.Vector3(f.g.position.x,f.g.position.y+1.3,f.g.position.z);}
+const rm=m=>{bScene.remove(m);if(m.geometry)m.geometry.dispose();if(m.material)m.material.dispose();};
 function bSparks(pos,color,n){for(let i=0;i<n;i++){const m=new THREE.Mesh(B3(.09,.09,.09),new THREE.MeshBasicMaterial({color:i%3?color:0xffffff,transparent:true}));m.position.copy(pos);
   const v=new THREE.Vector3((Math.random()-.5)*7,Math.random()*6-1,(Math.random()-.5)*7);bScene.add(m);let life=.7;
-  bfx.push({kill:()=>bScene.remove(m),up(dt){life-=dt;m.position.addScaledVector(v,dt);v.y-=8*dt;m.rotation.x+=.3;m.material.opacity=Math.max(0,life/.7);if(life<=0){bScene.remove(m);return false}return true}});}}
+  bfx.push({kill:()=>rm(m),up(dt){life-=dt;m.position.addScaledVector(v,dt);v.y-=8*dt;m.rotation.x+=.3;m.material.opacity=Math.max(0,life/.7);if(life<=0){rm(m);return false}return true}});}}
 function bBeam(fa,fd,color){const a=new THREE.Vector3();fa.mz.getWorldPosition(a);const b=bodyPos(fd);const d=b.clone().sub(a),len=d.length(),mid=a.clone().add(b).multiplyScalar(.5),q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());
   [[.05,1],[.18,.3]].forEach(([r,o])=>{const m=new THREE.Mesh(CL(r,r,len,8),new THREE.MeshBasicMaterial({color,transparent:true,opacity:o}));m.position.copy(mid);m.quaternion.copy(q);bScene.add(m);let life=.35;
-  bfx.push({kill:()=>bScene.remove(m),up(dt){life-=dt;m.material.opacity=o*Math.max(0,life/.35);if(life<=0){bScene.remove(m);return false}return true}});});}
+  bfx.push({kill:()=>rm(m),up(dt){life-=dt;m.material.opacity=o*Math.max(0,life/.35);if(life<=0){rm(m);return false}return true}});});}
 function bMissile(fa,fd,color,delay){return new Promise(res=>{setTimeout(()=>{const a=new THREE.Vector3();fa.mz.getWorldPosition(a);const b=bodyPos(fd);b.y+=(Math.random()-.5)*.6;
   const c=a.clone().add(b).multiplyScalar(.5);c.y+=2.5+Math.random()*1.5;c.z+=(Math.random()-.5)*3;const m=new THREE.Mesh(B3(.14,.14,.4),new THREE.MeshBasicMaterial({color}));bScene.add(m);let k=0;const prev=a.clone();
-  bfx.push({kill:()=>{bScene.remove(m);res();},up(dt){k+=dt/.65;const u=Math.min(1,k);const p=a.clone().multiplyScalar((1-u)*(1-u)).add(c.clone().multiplyScalar(2*u*(1-u))).add(b.clone().multiplyScalar(u*u));
-   m.position.copy(p);m.lookAt(p.clone().add(p.clone().sub(prev)));prev.copy(p);if(u>=1){bScene.remove(m);bSparks(b,color,10);res();return false}return true}});},skip?0:delay);});}
+  bfx.push({kill:()=>{rm(m);res();},up(dt){k+=dt/.65;const u=Math.min(1,k);const p=a.clone().multiplyScalar((1-u)*(1-u)).add(c.clone().multiplyScalar(2*u*(1-u))).add(b.clone().multiplyScalar(u*u));
+   m.position.copy(p);m.lookAt(p.clone().add(p.clone().sub(prev)));prev.copy(p);if(u>=1){rm(m);bSparks(b,color,10);res();return false}return true}});},skip?0:delay);});}
 function bPop(f,text,color){const v=bodyPos(f);v.y+=1.3;v.project(bCam);const el=document.createElement('div');el.className='pop';el.textContent=text;el.style.color=color;
   const bt=$('battle');el.style.left=((v.x+1)/2*bt.clientWidth)+'px';el.style.top=((1-v.y)/2*bt.clientHeight)+'px';bt.appendChild(el);setTimeout(()=>el.remove(),950);}
 async function bAttack(fa,fd,ev){
@@ -536,7 +566,7 @@ async function bAttack(fa,fd,ev){
 async function playBattle(a,d,evs){
   if(!bR)initBattle();
   $('battle').hidden=false;sizeBattle();skip=false;bgmFast=true;
-  bF.forEach(f=>bScene.remove(f.g));bfx.forEach(f=>f.kill());bfx=[];
+  bF.forEach(f=>{bScene.remove(f.g);f.g.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();});});bfx.forEach(f=>f.kill());bfx=[];
   const left=a.side===0?a:d,right=left===a?d:a;
   bF=[left,right].map((u,i)=>{const r=buildRobot(u.cfg,SIDE[u.side].c3);const x=i?3.2:-3.2,face=i?-1:1;
     Object.assign(r,{u,hp:u.hp,x,cx:x,face,aim:0,dash:0,shake:0,flash:0,dodge:0,dead:false,spin:0});
@@ -565,7 +595,8 @@ function battleFrame(){
 }
 
 /* ---------- boot ---------- */
-tiles=MAP.map(row=>[...row].map(ch=>({t:ch==='B'||ch==='R'?'H':ch,owner:ch==='B'?0:ch==='R'?1:-1})));
-units=[];cur=0;turn=1;funds=[0,0];cpu=[false,true];
+resetBoard();
 sizeMap();panelTitle();statusUI();requestAnimationFrame(loop);
 </script>
+</body>
+</html>
