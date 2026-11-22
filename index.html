@@ -67,6 +67,11 @@ select{font:inherit;font-size:16px;color:var(--ink);background:var(--void);borde
 ul.rules{margin:0;padding-left:1.2em;color:var(--dim);font-size:13px;display:flex;flex-direction:column;gap:2px}
 .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--dim)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+select[data-lv]{max-width:100%}
+.roster{max-height:360px;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.rrow{border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.rh{display:flex;align-items:center;gap:8px}.rh b{flex:1;min-width:0}
+.rh button{padding:4px 10px;font-size:12px}
 @media (max-width:420px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (prefers-reduced-motion:reduce){.pop{animation-duration:.01s}}
 </style>
@@ -140,11 +145,12 @@ const SFX={
   boom:()=>{noise(1.1,.6,0,1000);tone(90,.9,'sawtooth',.2,.3);},
   capture:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.13,'square',.11,1,i*.08)),
   produce:()=>[392,523,659,784].forEach((f,i)=>tone(f,.1,'triangle',.15,1,i*.06)),
+  heal:()=>[659,784,988,1319].forEach((f,i)=>tone(f,.12,'sine',.14,1,i*.07)),
   turn:()=>{tone(392,.14,'square',.11);tone(587,.28,'square',.11,1,.12);},
   win:()=>[523,659,784,1047,784,1047].forEach((f,i)=>tone(f,.24,'square',.13,1,i*.15)),
   lose:()=>[392,349,311,262].forEach((f,i)=>tone(f,.34,'triangle',.15,1,i*.24))
 };
-const WEAPON_SFX=['beam','missile','drill','blade'];
+const WEAPON_SFX=['beam','missile','drill','blade','beam','beam','blade','missile','blade'];
 const mf=m=>440*Math.pow(2,(m-69)/12);
 const PROG=[[57,60,64],[53,57,60],[48,52,55],[55,59,62]];
 let bgmStep=0,bgmNext=0,bgmFast=false;
@@ -169,16 +175,19 @@ const MAP=["B.a...n.s..","..a.s...a..","f...n.x..s.",".a..a...n..","s.n..f..n.s"
 const TER={'.':{n:'宇宙空間',cost:1,def:0,ev:0},a:{n:'小惑星帯',cost:2,def:2,ev:0},n:{n:'星雲',cost:2,def:0,ev:.12},x:{n:'ブラックホール',cost:99,def:0,ev:0},
  s:{n:'ステーション',cost:1,def:1,ev:0,inc:150,cap:1},f:{n:'工廠',cost:1,def:1,ev:0,inc:150,cap:1,prod:1},H:{n:'本拠地',cost:1,def:2,ev:0,inc:400,cap:1,prod:1}};
 const SIDE=[{n:'青軍',css:'#5ef2ff',cls:'b',c3:[0x5ef2ff,0xff5ce1,0xb394ff,0xffd75e]},{n:'赤軍',css:'#ff6a4d',cls:'r',c3:[0xff7a59,0xff3b6b,0xffb347,0x9fa8ff]}];
-const ST={head:[[1,1,1,1],[2,0,1,0],[0,3,-1,2]],body:[[1,2,1,2],[0,4,-1,4],[1,0,3,0]],weap:[[4,0,0,1],[5,0,-1,2],[3,1,0,2],[3,0,1,0]],legs:[[0,1,2,1],[1,3,-1,3],[0,0,4,0]]};
+const ST={head:[[1,1,1,1],[2,0,1,0],[0,3,-1,2]],body:[[1,2,1,2],[0,4,-1,4],[1,0,3,0]],weap:[[4,0,0,1],[5,0,-1,2],[3,1,0,2],[3,0,1,0],[5,0,-1,2],[3,0,1,1],[4,1,-1,3],[4,0,0,2],[0,0,1,0]],legs:[[0,1,2,1],[1,3,-1,3],[0,0,4,0]]};
 const KEYS=['head','body','weap','legs'];
-const PART_N={head:['標準カメラ','センサー型','重装甲ヘッド'],body:['バランス','重装甲','スピード'],weap:['ビーム砲','ミサイル','ドリル','ブレード'],legs:['二足','タンク','ホバー']};
-const RANGE=[[1,2],[2,3],[1,1],[1,1]];
+const PART_N={head:['標準カメラ','センサー型','重装甲ヘッド'],body:['バランス','重装甲','スピード'],weap:['ビーム砲','ミサイル','ドリル','ブレード','レールガン','ガトリング','ハンマー','グレネード','リペアアーム'],legs:['二足','タンク','ホバー']};
+const RANGE=[[1,2],[2,3],[1,1],[1,1],[2,4],[1,2],[1,1],[2,3],[1,1]];
+const INDIRECT=[1,7],BEAMS=[0,4,5],HEAL=8;
+const isHealer=u=>u.cfg.weap===HEAL;
 const PRESETS=[
  {n:'ストライカー',cfg:{head:0,body:0,weap:3,legs:0}},
  {n:'ファントム',cfg:{head:1,body:2,weap:0,legs:2}},
  {n:'アーティラリー',cfg:{head:1,body:1,weap:1,legs:1}},
  {n:'ドリラー',cfg:{head:0,body:0,weap:2,legs:0}},
- {n:'ガーディアン',cfg:{head:2,body:1,weap:0,legs:1}}
+ {n:'ガーディアン',cfg:{head:2,body:1,weap:0,legs:1}},
+ {n:'メディック',cfg:{head:0,body:0,weap:8,legs:0}}
 ];
 function statsOf(cfg){const t=[3,3,3,3];KEYS.forEach(k=>ST[k][cfg[k]].forEach((v,i)=>t[i]+=v));return t;}
 const costOf=cfg=>{const s=statsOf(cfg);return 150+(s[0]+s[1]+s[2]+s[3])*15;};
@@ -197,13 +206,20 @@ function newGame(vsCpu){
   units.forEach(u=>u.acted=false);
   mode='play';beginTurn();
 }
-function spawn(side,cfg,name,c,r){const st=statsOf(cfg);const u={id:++uid,side,cfg:{...cfg},name,st,max:maxHp(st),c,r,acted:true,moved:false};u.hp=u.max;units.push(u);return u;}
+function spawn(side,cfg,name,c,r,raw){const st=raw?raw.map(v=>2+v/10):statsOf(cfg);const disp=raw||st.map(v=>Math.min(99,Math.max(1,Math.round((v-2)*10))));const u={id:++uid,side,cfg:{...cfg},name,st,disp,cost:Math.round(150+st.reduce((a,b)=>a+b,0)*15),max:maxHp(st),c,r,acted:true,moved:false};u.hp=u.max;units.push(u);return u;}
 const unitAt=(c,r)=>units.find(u=>u.c===c&&u.r===r);
-const TURN_LIMIT=30;
+const TURN_LIMIT=30,GACHA_COST=300;
+let aiLv=2;try{const v=+localStorage.getItem('gw_lv');if(v>=1&&v<=4)aiLv=v;}catch(e){}
+const AIL={1:{n:'よわい',skip:.45,inc:0,dmg:.85,threat:false,risk:.3},2:{n:'ふつう',skip:0,inc:0,dmg:1,threat:true,risk:.6},3:{n:'つよい',skip:0,inc:150,dmg:1,threat:true,risk:.9},4:{n:'げきつよ',skip:0,inc:300,dmg:1.15,threat:true,risk:1.2}};
+const AI=()=>AIL[aiLv];
+const lvOpts=()=>[1,2,3,4].map(i=>`<option value="${i}" ${aiLv===i?'selected':''}>Lv${i} ${AIL[i].n}</option>`).join('');
+const healTargets=u=>units.filter(a=>a!==u&&a.side===u.side&&a.hp<a.max&&dist(u.c,u.r,a.c,a.r)===1);
+function gachaRoll(){const raw=[0,1,2,3].map(()=>1+rnd(99));const sum=raw.reduce((a,b)=>a+b,0);const rank=sum>=290?'SSR':sum>=240?'SR':sum>=160?'R':'N';
+  return {raw,rank,cfg:{head:rnd(3),body:rnd(3),weap:rnd(10)===0?HEAL:rnd(8),legs:rnd(3)}};}
 const initTiles=()=>MAP.map(row=>[...row].map(ch=>({t:ch==='B'||ch==='R'?'H':ch,owner:ch==='B'?0:ch==='R'?1:-1})));
 function resetBoard(){mode='title';tiles=initTiles();units=[];cur=0;turn=1;funds=[0,0];cpu=[false,true];sel=null;phase='idle';info=null;targets=[];over=false;busy=false;prodSite=null;bgmFast=false;$('banner').hidden=true;$('banner').onclick=null;}
 function hqOf(s){for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(tiles[r][c].t==='H'&&tiles[r][c].owner===s)return [c,r];return null;}
-function scoreOf(s){return funds[s]+units.filter(u=>u.side===s).reduce((a,u)=>a+Math.round(costOf(u.cfg)*u.hp/u.max),0)+tiles.flat().filter(t=>TER[t.t].cap&&t.owner===s).length*200;}
+function scoreOf(s){return funds[s]+units.filter(u=>u.side===s).reduce((a,u)=>a+Math.round(u.cost*u.hp/u.max),0)+tiles.flat().filter(t=>TER[t.t].cap&&t.owner===s).length*200;}
 
 /* ---------- hex math ---------- */
 function nbrs(c,r){const d=r&1?[[1,0],[1,-1],[0,-1],[-1,0],[0,1],[1,1]]:[[1,0],[0,-1],[-1,-1],[-1,0],[-1,1],[0,1]];return d.map(([a,b])=>[c+a,r+b]).filter(([x,y])=>x>=0&&y>=0&&x<COLS&&y<ROWS);}
@@ -222,21 +238,21 @@ function reach(u){
 }
 function pathTo(R,from,to){const p=[];let k=to;while(k&&k!==from){p.unshift(UK(k));k=R.prev.get(k);}return p;}
 function inRange(u,c,r,e){const d=dist(c,r,e.c,e.r),g=RANGE[u.cfg.weap];return d>=g[0]&&d<=g[1];}
-const canFire=u=>!(u.cfg.weap===1&&u.moved);
-const enemiesInRange=(u,c,r)=>units.filter(e=>e.side!==u.side&&inRange(u,c,r,e));
+const canFire=u=>!(INDIRECT.includes(u.cfg.weap)&&u.moved);
+const enemiesInRange=(u,c,r)=>isHealer(u)?[]:units.filter(e=>e.side!==u.side&&inRange(u,c,r,e));
 
 /* ---------- combat ---------- */
 function strike(a,d){
   const T=TER[tiles[d.r][d.c].t];
-  const evc=Math.min(.4,Math.max(.03,.08+(d.st[2]-a.st[2])*.03+T.ev+(a.cfg.weap===0?-.05:0)));
+  const evc=Math.min(.4,Math.max(.03,.08+(d.st[2]-a.st[2])*.03+T.ev+(a.cfg.weap===0||a.cfg.weap===4?-.05:0)));
   if(Math.random()<evc)return {ev:true,dmg:0,crit:false};
   const crit=Math.random()<.15;
-  return {ev:false,crit,dmg:Math.max(3,Math.round((9+a.st[0]*2.3)*(.85+Math.random()*.3)*(crit?1.6:1)-d.st[1]*1.3-T.def*2))};
+  return {ev:false,crit,dmg:Math.max(3,Math.round((9+a.st[0]*2.3)*(.85+Math.random()*.3)*(crit?1.6:1)*(cpu[a.side]?AI().dmg:1)-d.st[1]*1.3-T.def*2))};
 }
 function expDmg(a,d,dc,dr){const T=TER[tiles[dr][dc].t];return Math.max(3,(9+a.st[0]*2.3)-d.st[1]*1.3-T.def*2);}
 function resolve(a,d){
   const ev=[],s1=strike(a,d);ev.push({att:a,def:d,...s1});
-  if(d.hp-s1.dmg>0&&inRange(d,d.c,d.r,a)){const s2=strike(d,a);s2.dmg=Math.round(s2.dmg*.8);ev.push({att:d,def:a,...s2});}
+  if(d.hp-s1.dmg>0&&!isHealer(d)&&inRange(d,d.c,d.r,a)){const s2=strike(d,a);s2.dmg=Math.round(s2.dmg*.8);ev.push({att:d,def:a,...s2});}
   return ev;
 }
 
@@ -276,7 +292,8 @@ function draw(){
     for(const k of R.set){const [c,r]=UK(k),[x,y]=ctr(c,r);hexPath(x,y,S*.9);ctx.fillStyle=rgba(SIDE[sel.side].css,.2);ctx.fill();ctx.strokeStyle=rgba(SIDE[sel.side].css,.55);ctx.lineWidth=1;ctx.stroke();}
   }
   const tg=phase==='target'||phase==='moved'?targets:[];
-  tg.forEach(e=>{const [x,y]=ctr(e.c,e.r);hexPath(x,y,S*.9);ctx.fillStyle='rgba(255,106,77,.22)';ctx.fill();ctx.strokeStyle='#ff6a4d';ctx.lineWidth=phase==='target'?2.2:1.2;ctx.stroke();});
+  const hl=sel&&isHealer(sel);
+  tg.forEach(e=>{const [x,y]=ctr(e.c,e.r);hexPath(x,y,S*.9);ctx.fillStyle=hl?'rgba(125,255,155,.22)':'rgba(255,106,77,.22)';ctx.fill();ctx.strokeStyle=hl?'#7dff9b':'#ff6a4d';ctx.lineWidth=phase==='target'?2.2:1.2;ctx.stroke();});
   if(info&&!sel){const [x,y]=ctr(info[0],info[1]);hexPath(x,y,S*.95);ctx.strokeStyle='#ffd75e';ctx.lineWidth=1.6;ctx.stroke();}
   units.forEach(drawUnit);
 }
@@ -292,6 +309,11 @@ function drawUnit(u){
   if(w===1){[[-.5,.35],[.1,-.15],[.6,.35]].forEach(([dx,dy])=>{ctx.beginPath();ctx.moveTo(cx+dx*g,cy+dy*g-g*.45);ctx.lineTo(cx+dx*g-g*.25,cy+dy*g+g*.3);ctx.lineTo(cx+dx*g+g*.25,cy+dy*g+g*.3);ctx.closePath();ctx.stroke();});}
   if(w===2){ctx.moveTo(cx-g*.6*f,cy-g*.55);ctx.lineTo(cx+g*f,cy);ctx.lineTo(cx-g*.6*f,cy+g*.55);ctx.closePath();ctx.stroke();ctx.beginPath();ctx.moveTo(cx-g*.2*f,cy-g*.32);ctx.lineTo(cx+g*.05*f,cy+g*.2);ctx.stroke();}
   if(w===3){ctx.moveTo(cx-g*.8,cy+g*.8);ctx.lineTo(cx+g*.8,cy-g*.8);ctx.lineWidth=2.4;ctx.stroke();ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(cx-g*.75,cy+g*.2);ctx.lineTo(cx-g*.2,cy+g*.75);ctx.stroke();}
+  if(w===4){ctx.moveTo(cx-g*f,cy);ctx.lineTo(cx+g*1.2*f,cy);ctx.lineWidth=2.6;ctx.stroke();ctx.lineWidth=1.8;ctx.beginPath();ctx.arc(cx+g*1.2*f,cy,2.2,0,7);ctx.fill();}
+  if(w===5){[-.4,0,.4].forEach(dy=>{ctx.beginPath();ctx.moveTo(cx-g*.8*f,cy+dy*g);ctx.lineTo(cx+g*.8*f,cy+dy*g);ctx.stroke();});}
+  if(w===6){ctx.moveTo(cx-g*.8,cy+g*.8);ctx.lineTo(cx+g*.3,cy-g*.3);ctx.stroke();ctx.strokeRect(cx+g*.1,cy-g*.9,g*.8,g*.6);}
+  if(w===7){ctx.arc(cx,cy,g*.55,0,7);ctx.stroke();ctx.beginPath();ctx.arc(cx,cy,2.2,0,7);ctx.fill();}
+  if(w===8){ctx.strokeStyle='#7dff9b';ctx.lineWidth=3;ctx.moveTo(cx-g*.7,cy);ctx.lineTo(cx+g*.7,cy);ctx.moveTo(cx,cy-g*.7);ctx.lineTo(cx,cy+g*.7);ctx.stroke();}
   const bw=s*1.05,bx=cx-bw/2,by=cy+s*.66;ctx.fillStyle='rgba(255,255,255,.12)';ctx.fillRect(bx,by,bw,3);
   const pr=u.hp/u.max;ctx.fillStyle=pr>.5?col:pr>.25?'#ffd75e':'#ff3b6b';ctx.fillRect(bx,by,bw*pr,3);
   ctx.globalAlpha=1;
@@ -309,20 +331,26 @@ const nextFrame=cb=>document.hidden?setTimeout(cb,50):requestAnimationFrame(cb);
 /* ---------- UI ---------- */
 function statusUI(){
   if(mode==='title'){$('status').innerHTML='';return;}
-  $('status').innerHTML=`<span class="pill">TURN ${turn}/${TURN_LIMIT}</span>`+[0,1].map(s=>`<span class="pill ${SIDE[s].cls} ${s===cur?'on':''}">${SIDE[s].n}${cpu[s]?'(CPU)':''} ${funds[s]}G</span>`).join('');
+  $('status').innerHTML=`<span class="pill">TURN ${turn}/${TURN_LIMIT}</span>`+[0,1].map(s=>`<span class="pill ${SIDE[s].cls} ${s===cur?'on':''}">${SIDE[s].n}${cpu[s]?'(CPU Lv'+aiLv+')':''} ${funds[s]}G</span>`).join('');
 }
 function unitBlock(u){
-  const g=RANGE[u.cfg.weap],T=TER[tiles[u.r][u.c].t];
+  const g=RANGE[u.cfg.weap],T=TER[tiles[u.r][u.c].t],rg=isHealer(u)?'補給1':(g[0]===g[1]?g[0]:g[0]+'-'+g[1]);
   return `<p><b style="color:${SIDE[u.side].css}">${SIDE[u.side].n} ${u.name}</b> <span class="muted">HP ${u.hp}/${u.max}</span></p>
   <p class="muted">${PART_N.head[u.cfg.head]}・${PART_N.body[u.cfg.body]}・${PART_N.weap[u.cfg.weap]}・${PART_N.legs[u.cfg.legs]}</p>
-  <div class="stats"><div>攻撃<b>${u.st[0]}</b></div><div>防御<b>${u.st[1]}</b></div><div>移動<b>${moveOf(u)}</b></div><div>射程<b>${g[0]===g[1]?g[0]:g[0]+'-'+g[1]}</b></div></div>
+  <div class="stats"><div>攻撃<b>${u.disp[0]}</b></div><div>防御<b>${u.disp[1]}</b></div><div>速度<b>${u.disp[2]}</b></div><div>重量<b>${u.disp[3]}</b></div><div>移動<b>${moveOf(u)}</b></div><div>射程<b>${rg}</b></div><div>HP<b>${u.hp}</b></div><div>最大HP<b>${u.max}</b></div></div>
   <p class="muted">地形：${T.n}${T.def?'（防御+'+T.def+'）':''}${T.ev?'（回避+）':''}</p>`;
+}
+function panelRoster(){
+  const row=u=>{const p=Math.round(u.hp/u.max*100);return `<div class="rrow"><div class="rh"><b style="color:${SIDE[u.side].css}">${u.name}</b><span class="muted">${PART_N.weap[u.cfg.weap]}${u.acted&&u.side===cur?'・行動済':''}</span><button data-a="focus" data-id="${u.id}">位置</button></div><div class="bar"><i style="width:${p}%;background:${SIDE[u.side].css}"></i></div><div class="stats"><div>HP<b>${u.hp}/${u.max}</b></div><div>攻撃<b>${u.disp[0]}</b></div><div>防御<b>${u.disp[1]}</b></div><div>速度<b>${u.disp[2]}</b></div></div></div>`;};
+  const mine=units.filter(u=>u.side===cur),foe=units.filter(u=>u.side!==cur);
+  panel(`<h2>出撃中の部隊</h2><div class="roster"><p class="muted">${SIDE[cur].n}（${mine.length}機）</p>${mine.map(row).join('')||'<p class="muted">なし</p>'}<p class="muted">${SIDE[1-cur].n}（${foe.length}機）</p>${foe.map(row).join('')||'<p class="muted">なし</p>'}</div><div class="btns"><button class="go" data-a="cancel">閉じる</button></div>`);
 }
 function panel(html){const P=$('panel'),had=P.contains(document.activeElement);P.innerHTML=html;if(had){const t=P.querySelector('button.go,button');if(t)t.focus({preventScroll:true});}}
 function panelTitle(){
   panel(`<h2>MISSION SELECT</h2>
   <p>ロボット部隊を指揮して、敵の本拠地★を占領しよう。</p>
-  <ul class="rules"><li>自分のユニットをタップ → 移動先をタップ → 攻撃・占領・待機を選ぶ</li><li>ステーション◎と工廠■を占領すると毎ターン資金が増える</li><li>本拠地と工廠をタップすると新しいロボットを生産できる</li><li>脚で移動力、武器で射程が変わる（ミサイルは隣は撃てず、移動した後も撃てない）</li><li>本拠地の占領は2ターンかかる（途中で動くと最初から）</li><li>${TURN_LIMIT}ターンで決着しなければ、戦力評価で勝敗が決まる</li></ul>
+  <ul class="rules"><li>自分のユニットをタップ → 移動先をタップ → 攻撃・占領・待機を選ぶ</li><li>ステーション◎と工廠■を占領すると毎ターン資金が増える</li><li>本拠地と工廠をタップすると新しいロボットを生産できる</li><li>脚で移動力、武器で射程が変わる（ミサイルは隣は撃てず、移動した後も撃てない）</li><li>本拠地の占領は2ターンかかる（途中で動くと最初から）</li><li>${TURN_LIMIT}ターンで決着しなければ、戦力評価で勝敗が決まる</li><li>生産メニューの「ガチャ」（${GACHA_COST}G）で、能力が1〜99ランダムのロボットが出る</li><li>メディックは隣の味方のHPを補給できる。「部隊一覧」で出撃中の全機の能力が見られる</li></ul>
+  <label>CPUのつよさ<select data-lv="1">${lvOpts()}</select></label>
   <div class="btns"><button class="go" data-a="cpu">CPUと対戦</button><button data-a="pvp">2人で対戦</button></div>`);
 }
 function panelIdle(){
@@ -333,27 +361,32 @@ function panelIdle(){
     if(u)h+=unitBlock(u);
     else h+=`<p>${TER[T.t].n}${TER[T.t].cap?'（'+(T.owner<0?'中立':SIDE[T.owner].n)+'）':''}</p><p class="muted">${TER[T.t].inc?'収入 '+TER[T.t].inc+'G/ターン　':''}${TER[T.t].def?'防御+'+TER[T.t].def:''}${TER[T.t].ev?'回避しやすい':''}${T.t==='x'?'通行できない':''}</p>`;
   } else h+=`<p class="muted">動かすユニットをタップ。本拠地・工廠をタップで生産。</p>`;
-  h+=`<div class="btns"><button class="go" data-a="end">ターン終了</button><button data-a="surrender">降参</button><button data-a="quit">タイトルへ</button></div>`;
+  h+=(cpu[1]?`<label>CPUのつよさ<select data-lv="1">${lvOpts()}</select></label>`:'')+`<div class="btns"><button class="go" data-a="end">ターン終了</button><button data-a="roster">部隊一覧</button><button data-a="surrender">降参</button><button data-a="quit">タイトルへ</button></div>`;
   panel(h);
 }
 function panelSelect(){panel(`<h2>移動先を選択</h2>${unitBlock(sel)}<p class="muted">光っているマスをタップ（同じマスで移動しない）</p><div class="btns"><button data-a="cancel">キャンセル</button></div>`);}
 function panelMoved(){
   const T=tiles[sel.r][sel.c],canCap=TER[T.t].cap&&T.owner!==sel.side;
-  panel(`<h2>行動を選択</h2>${unitBlock(sel)}${sel.cfg.weap===1&&sel.moved?'<p class="muted">ミサイルは移動後に撃てません</p>':''}<div class="btns">
-  ${targets.length?'<button class="go" data-a="atk">攻撃（'+targets.length+'）</button>':''}
+  panel(`<h2>行動を選択</h2>${unitBlock(sel)}${INDIRECT.includes(sel.cfg.weap)&&sel.moved?'<p class="muted">ミサイルは移動後に撃てません</p>':''}<div class="btns">
+  ${targets.length?'<button class="go" data-a="atk">'+(isHealer(sel)?'補給':'攻撃')+'（'+targets.length+'）</button>':''}
   ${canCap?'<button class="go" data-a="cap">占領'+(T.t==='H'?(T.cp&&T.cp.id===sel.id?'（完了）':'（1/2）'):'')+'</button>':''}
   <button data-a="wait">待機</button><button data-a="undo">戻る</button></div>`);
 }
-function panelTarget(){panel(`<h2>攻撃目標を選択</h2><p class="muted">赤く光る敵をタップ</p>${targets.map(e=>{const p=Math.round(expDmg(sel,e,e.c,e.r));return `<p class="muted">${e.name}：予想ダメージ 約${p}（HP ${e.hp}）</p>`}).join('')}<div class="btns"><button data-a="back">戻る</button></div>`);}
+function panelTarget(){
+  const h=isHealer(sel);
+  panel(`<h2>${h?'補給先を選択':'攻撃目標を選択'}</h2><p class="muted">${h?'緑に光る味方をタップ':'赤く光る敵をタップ'}</p>${targets.map(e=>h?`<p class="muted">${e.name}：回復 約${Math.min(Math.max(15,Math.round(e.max*.35)),e.max-e.hp)}（HP ${e.hp}/${e.max}）</p>`:`<p class="muted">${e.name}：予想ダメージ 約${Math.round(expDmg(sel,e,e.c,e.r))}（HP ${e.hp}）</p>`).join('')}<div class="btns"><button data-a="back">戻る</button></div>`);
+}
 function panelProd(){
   const f=funds[cur];
   const cc=costOf(custom),cs=statsOf(custom);
   panel(`<h2>生産（所持 ${f}G）</h2><div class="grid2">${PRESETS.map((p,i)=>{const c=costOf(p.cfg);return `<button class="preset" data-a="buy" data-i="${i}" aria-disabled="${c>f}">${p.n} ${c}G<span>${PART_N.weap[p.cfg.weap]}・${PART_N.legs[p.cfg.legs]}</span></button>`}).join('')}</div>
+  <h2>ガチャ</h2><p class="muted">能力（攻撃・防御・速度・重量）が1〜99ランダム。武器も全種類からランダム！</p><div class="btns"><button class="go" data-a="gacha" aria-disabled="${GACHA_COST>f}">ガチャを回す ${GACHA_COST}G</button></div>
   <h2>カスタム</h2><div class="grid2">${KEYS.map(k=>`<label>${{head:'頭',body:'胴体',weap:'武器',legs:'脚'}[k]}<select id="cu-${k}" data-k="${k}">${PART_N[k].map((n,i)=>`<option value="${i}" ${custom[k]===i?'selected':''}>${n}</option>`).join('')}</select></label>`).join('')}</div>
   <div class="stats"><div>攻撃<b>${cs[0]}</b></div><div>防御<b>${cs[1]}</b></div><div>速度<b>${cs[2]}</b></div><div>重量<b>${cs[3]}</b></div></div>
   <div class="btns"><button class="go" data-a="buyc" aria-disabled="${cc>f}">カスタム機を生産 ${cc}G</button><button data-a="cancel">閉じる</button></div>`);
 }
-$('panel').addEventListener('change',e=>{const k=e.target.dataset.k;if(k){custom[k]=+e.target.value;panelProd();$('cu-'+k).focus({preventScroll:true});}});
+$('panel').addEventListener('change',e=>{if(e.target.dataset.lv){aiLv=+e.target.value;try{localStorage.setItem('gw_lv',aiLv);}catch(er){}statusUI();return;}
+  const k=e.target.dataset.k;if(k){custom[k]=+e.target.value;panelProd();$('cu-'+k).focus({preventScroll:true});}});
 $('panel').addEventListener('click',async e=>{
   const b=e.target.closest('button');if(!b)return;const a=b.dataset.a;
   if(a==='cpu'||a==='pvp'){newGame(a==='cpu');return;}
@@ -367,6 +400,14 @@ $('panel').addEventListener('click',async e=>{
   else if(a==='wait'){SFX.select();sel.acted=true;sel=null;phase='idle';panelIdle();}
   else if(a==='undo'){SFX.cancel();sel.c=origin[0];sel.r=origin[1];sel.moved=false;R=reach(sel);phase='select';targets=[];panelSelect();}
   else if(a==='cap'){const u=sel;sel=null;phase='idle';await capture(u);if(!over)panelIdle();}
+  else if(a==='roster'){SFX.select();phase='idle';panelRoster();}
+  else if(a==='focus'){const t=units.find(x=>x.id===+b.dataset.id);if(t){SFX.select();info=[t.c,t.r];phase='idle';panelIdle();}}
+  else if(a==='gacha'){
+    if(GACHA_COST>funds[cur]){SFX.cancel();const t0=b.innerHTML;b.textContent='資金が足りません';setTimeout(()=>{if(b.isConnected)b.innerHTML=t0;},1200);return;}
+    const gr=gachaRoll();funds[cur]-=GACHA_COST;spawn(cur,gr.cfg,'ガチャ機['+gr.rank+']',prodSite[0],prodSite[1],gr.raw);
+    (gr.rank==='SSR'||gr.rank==='SR'?SFX.capture:SFX.produce)();mapPop(prodSite[0],prodSite[1],gr.rank+'!',gr.rank==='SSR'?'#ffd75e':SIDE[cur].css);
+    prodSite=null;phase='idle';statusUI();panelIdle();
+  }
   else if(a==='buy'||a==='buyc'){
     const cfg=a==='buy'?PRESETS[+b.dataset.i].cfg:{...custom},name=a==='buy'?PRESETS[+b.dataset.i].n:'カスタム機',c=costOf(cfg);
     if(c>funds[cur]){SFX.cancel();const t0=b.innerHTML;b.textContent='資金が足りません';setTimeout(()=>{if(b.isConnected)b.innerHTML=t0;},1200);return;}
@@ -383,7 +424,7 @@ cv.addEventListener('click',async e=>{
   const rc=cv.getBoundingClientRect(),mx=e.clientX-rc.left,my=e.clientY-rc.top;
   let hit=null,bd=1e9;for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const [x,y]=ctr(c,r),d=(x-mx)**2+(y-my)**2;if(d<bd){bd=d;hit=[c,r];}}
   if(!hit||bd>S*S)return;const [c,r]=hit,u=unitAt(c,r);
-  if(phase==='target'){if(u&&targets.includes(u)){const a=sel;sel=null;phase='idle';targets=[];await doAttack(a,u);if(!over)panelIdle();}return;}
+  if(phase==='target'){if(u&&targets.includes(u)){const a=sel;sel=null;phase='idle';targets=[];await (isHealer(a)?doHeal(a,u):doAttack(a,u));if(!over)panelIdle();}return;}
   if(phase==='moved')return;
   if(phase==='select'&&sel){
     const k=K(c,r);
@@ -396,7 +437,7 @@ cv.addEventListener('click',async e=>{
   sel=null;phase='idle';info=[c,r];
   panelIdle();
 });
-function afterMove(){targets=canFire(sel)?enemiesInRange(sel,sel.c,sel.r):[];phase='moved';panelMoved();}
+function afterMove(){targets=isHealer(sel)?healTargets(sel):(canFire(sel)?enemiesInRange(sel,sel.c,sel.r):[]);phase='moved';panelMoved();}
 async function walk(u,path){
   if(path.length)u.moved=true;
   for(const [c,r] of path){const a=ctr(u.c,u.r),b=ctr(c,r);const t0=performance.now();
@@ -422,6 +463,10 @@ async function doAttack(a,d){
   for(const u of [a,d])if(u.hp<=0){if(!fx)SFX.boom();units.splice(units.indexOf(u),1);mapPop(u.c,u.r,'撃破','#ffd75e');}
   busy=false;statusUI();checkWin();
 }
+async function doHeal(a,t){
+  busy=true;a.acted=true;const gain=Math.min(Math.max(15,Math.round(t.max*.35)),t.max-t.hp);t.hp+=gain;
+  SFX.heal();mapPop(t.c,t.r,'+'+gain,'#7dff9b');await sleep(600);busy=false;statusUI();
+}
 function showResult(w,msg){
   over=true;bgmFast=false;sel=null;phase='idle';
   const btns=`<div class="btns"><button class="go" data-a="${cpu[1]?'cpu':'pvp'}">もう一度</button><button data-a="quit">タイトルへ</button></div>`;
@@ -445,7 +490,7 @@ function bannerShow(html,tap,ms){
 }
 async function beginTurn(){
   $('banner').hidden=true;
-  let inc=0;tiles.flat().forEach(t=>{if(t.owner===cur&&TER[t.t].inc)inc+=TER[t.t].inc;});funds[cur]+=inc;
+  let inc=0;tiles.flat().forEach(t=>{if(t.owner===cur&&TER[t.t].inc)inc+=TER[t.t].inc;});if(cpu[cur])inc+=AI().inc;funds[cur]+=inc;
   tiles.forEach((row,r)=>row.forEach((T,c)=>{if(T.cp){const o=unitAt(c,r);if(!o||o.id!==T.cp.id)T.cp=null;}}));
   units.forEach(u=>{if(u.side===cur){u.acted=false;u.moved=false;}});
   sel=null;phase='idle';info=null;statusUI();
@@ -471,11 +516,14 @@ async function runAI(){
 async function aiUnit(u){
   const RR=reach(u);let best=null,cap=null;
   const foes=units.filter(x=>x.side!==u.side);
-  const hq=hqOf(u.side),threats=hq?foes.filter(e=>dist(e.c,e.r,hq[0],hq[1])<=moveOf(e)+2):[];
+  if(isHealer(u)){await aiHeal(u,RR);return;}
+  if(Math.random()<AI().skip){const ks=[...RR.set],k=ks[rnd(ks.length)],[wc,wr]=UK(k);sel=u;R=RR;phase='select';await sleep(250);
+    if(wc!==u.c||wr!==u.r)await walk(u,pathTo(RR,K(u.c,u.r),k));u.acted=true;sel=null;phase='idle';return;}
+  const hq=hqOf(u.side),threats=hq&&AI().threat?foes.filter(e=>dist(e.c,e.r,hq[0],hq[1])<=moveOf(e)+2):[];
   for(const k of RR.set){const [c,r]=UK(k),T=tiles[r][c];
-    for(const e of foes){if(!inRange(u,c,r,e))continue;if(u.cfg.weap===1&&(c!==u.c||r!==u.r))continue;
+    for(const e of foes){if(!inRange(u,c,r,e))continue;if(INDIRECT.includes(u.cfg.weap)&&(c!==u.c||r!==u.r))continue;
       const ex=expDmg(u,e,e.c,e.r);let sc=ex+(ex>=e.hp?60:0)+TER[T.t].def*2+(threats.includes(e)?25:0);
-      if(ex<e.hp&&inRange(e,e.c,e.r,{c,r}))sc-=expDmg(e,u,c,r)*.6;
+      if(ex<e.hp&&inRange(e,e.c,e.r,{c,r}))sc-=expDmg(e,u,c,r)*AI().risk;
       if(!best||sc>best.sc)best={sc,c,r,e};}
     if(TER[T.t].cap&&T.owner!==u.side){const sc=T.t==='H'?999:T.owner>=0?38:30;if(!cap||sc>cap.sc)cap={sc,c,r};}
   }
@@ -489,11 +537,22 @@ async function aiUnit(u){
   if(tgt&&(tgt[0]!==u.c||tgt[1]!==u.r))await walk(u,pathTo(RR,K(u.c,u.r),K(tgt[0],tgt[1])));
   u.acted=true;sel=null;phase='idle';
 }
+async function aiHeal(u,RR){
+  const al=units.filter(x=>x.side===u.side&&x!==u),en=units.filter(x=>x.side!==u.side);let best=null;
+  for(const k of RR.set){const [c,r]=UK(k);for(const a of al){if(dist(c,r,a.c,a.r)!==1||a.hp>=a.max)continue;const sc=(a.max-a.hp)+(a.hp/a.max<.4?30:0);if(!best||sc>best.sc)best={sc,c,r,a};}}
+  sel=u;R=RR;phase='select';await sleep(250);
+  if(best){await walk(u,pathTo(RR,K(u.c,u.r),K(best.c,best.r)));sel=null;phase='idle';await doHeal(u,best.a);busy=true;return;}
+  let tgt=null,bd=1e9;
+  for(const k of RR.set){const [c,r]=UK(k);let m=1e9;al.forEach(a=>m=Math.min(m,dist(c,r,a.c,a.r)+(a.hp<a.max?-1:0)));en.forEach(e=>{if(dist(c,r,e.c,e.r)<=3)m+=3;});if(m<bd){bd=m;tgt=[c,r];}}
+  if(tgt&&(tgt[0]!==u.c||tgt[1]!==u.r))await walk(u,pathTo(RR,K(u.c,u.r),K(tgt[0],tgt[1])));
+  u.acted=true;sel=null;phase='idle';
+}
 function aiProduce(){
   tiles.forEach((row,r)=>row.forEach((T,c)=>{
     if(!TER[T.t].prod||T.owner!==cur||unitAt(c,r))return;
-    const opts=PRESETS.filter(p=>costOf(p.cfg)<=funds[cur]-(units.filter(u=>u.side===cur).length>5?400:0));
-    if(!opts.length)return;const tw=opts.map(q=>{const z=statsOf(q.cfg);return z[0]+z[1];}),sum=tw.reduce((x,y)=>x+y,0);let xr=Math.random()*sum,pi=0;while(pi<opts.length-1&&(xr-=tw[pi])>0)pi++;const p=opts[pi];funds[cur]-=costOf(p.cfg);spawn(cur,p.cfg,p.n,c,r);mapPop(c,r,'発進',SIDE[cur].css);
+    const mineU=units.filter(u=>u.side===cur),healerOk=mineU.length>=3&&!mineU.some(isHealer);
+    const opts=PRESETS.filter(p=>costOf(p.cfg)<=funds[cur]-(mineU.length>5?400:0)&&(p.cfg.weap!==HEAL||healerOk));
+    if(!opts.length)return;const tw=opts.map(q=>{const z=statsOf(q.cfg);const w0=z[0]+z[1];return aiLv===1?1:aiLv>=3?w0*w0:w0;}),sum=tw.reduce((x,y)=>x+y,0);let xr=Math.random()*sum,pi=0;while(pi<opts.length-1&&(xr-=tw[pi])>0)pi++;const p=opts[pi];funds[cur]-=costOf(p.cfg);spawn(cur,p.cfg,p.n,c,r);mapPop(c,r,'発進',SIDE[cur].css);
   }));statusUI();
 }
 
@@ -515,7 +574,12 @@ const SHX=[1.3,1.6,1.15];
 const WEAPS=[(P,el,a,c)=>{P(B3(.45,.45,1.4),c,0,0,.4,el);P(CL(.1,.1,.5),c,0,0,1.3,el,PI/2);return [0,0,1.6];},
  (P,el,a,c)=>{P(B3(.8,.8,.9),c,.1,0,.1,el);[[-.15,-.15],[.15,-.15],[-.15,.15],[.15,.15]].forEach(([x,y])=>P(CL(.1,.1,.2),c,.1+x,y,.6,el,PI/2));P(B3(.7,.7,.8),c,0,.45,-.3,a);return [.1,0,.7];},
  (P,el,a,c)=>{P(CL(.35,.35,.3,10),c,0,0,.15,el,PI/2);el.drill=P(CL(0,.33,1.4,8),c,0,0,1,el,PI/2);return [0,0,1.7];},
- (P,el,a,c)=>{P(B3(.45,.5,.5),c,0,0,0,el);P(B3(.08,.35,2.2),c,0,0,1.3,el);P(B3(.2,.6,.15),c,0,0,.3,el);return [0,0,2.4];}];
+ (P,el,a,c)=>{P(B3(.45,.5,.5),c,0,0,0,el);P(B3(.08,.35,2.2),c,0,0,1.3,el);P(B3(.2,.6,.15),c,0,0,.3,el);return [0,0,2.4];},
+ (P,el,a,c)=>{P(B3(.3,.3,2.2),c,0,0,.9,el);P(B3(.55,.15,.9),c,0,0,.2,el);P(B3(.55,.15,.2),c,0,0,1.6,el);return [0,0,2.1];},
+ (P,el,a,c)=>{P(B3(.5,.5,.7),c,0,0,.1,el);[[-.14,-.14],[.14,-.14],[-.14,.14],[.14,.14]].forEach(([x,y])=>P(CL(.07,.07,1.2,6),c,x,y,.9,el,PI/2));return [0,0,1.5];},
+ (P,el,a,c)=>{P(B3(.14,.14,1.7),c,0,0,.5,el);P(B3(.8,.8,.9),c,0,0,1.6,el);return [0,0,2.1];},
+ (P,el,a,c)=>{P(CL(.3,.3,1.2,8),c,0,0,.5,el,PI/2);P(CL(.42,.3,.35,8),c,0,0,1.2,el,PI/2);P(B3(.5,.4,.5),c,0,-.1,-.1,el);return [0,0,1.3];},
+ (P,el,a,c)=>{P(B3(.5,.5,.9),c,0,0,.3,el);P(B3(.9,.18,.18),c,0,0,.9,el);P(B3(.18,.9,.18),c,0,0,.9,el);return [0,0,1.0];}];
 const LEGS=[(P,g,c)=>{[-1,1].forEach(s=>{P(B3(.5,1.1,.55),c,s*.45,.25,0,g);P(S3(.22),c,s*.45,-.4,0,g);P(B3(.45,1.1,.5),c,s*.45,-1.05,0,g);P(B3(.75,.25,1.1),c,s*.45,-1.75,.15,g);});return false;},
  (P,g,c)=>{P(B3(1.4,.6,1),c,0,.45,0,g);P(B3(.4,1.1,.4),c,0,-.4,0,g);[-1,1].forEach(s=>{P(B3(.6,.9,2.4),c,s*.85,-1.5,0,g);[-.8,0,.8].forEach(z=>P(CL(.3,.3,.65,10),c,s*.85,-1.5,z,g,0,PI/2));});return false;},
  (P,g,c)=>{P(CL(.35,.6,1,6),c,0,.2,0,g);P(CL(1.3,1.3,.25,16),c,0,-.55,0,g);[[-.8,0],[.8,0],[0,.8],[0,-.8]].forEach(([x,z])=>P(CL(.25,.15,.3,8),c,x,-.85,z,g));return true;}];
@@ -557,9 +621,9 @@ async function bAttack(fa,fd,ev){
   const col=SIDE[fa.u.side].c3[0],css=SIDE[fa.u.side].css,w=fa.u.cfg.weap;
   fa.aim=1;await bsl(380);
   const land=()=>{if(ev.ev){SFX.miss();fd.dodge=.45;bPop(fd,'MISS','#a2a4d6');}else{SFX.hit();fd.hp-=ev.dmg;fd.shake=.35;fd.flash=.3;bPop(fd,(ev.crit?'CRITICAL ':'')+ev.dmg,ev.crit?'#ffd75e':css);if(fd.hp<=0){fd.dead=true;setTimeout(SFX.boom,250);}}bHud();};
-  if(w!==1)SFX[WEAPON_SFX[w]]();
-  if(w===0){bBeam(fa,fd,col);if(!ev.ev)bSparks(bodyPos(fd),col,22);land();await bsl(450);}
-  else if(w===1){[0,110,220,330].forEach(d=>setTimeout(SFX.missile,skip?0:d));await Promise.all([0,110,220,330].map(d=>bMissile(fa,fd,col,d)));land();await bsl(350);}
+  if(!INDIRECT.includes(w))SFX[WEAPON_SFX[w]]();
+  if(BEAMS.includes(w)){bBeam(fa,fd,col);if(!ev.ev)bSparks(bodyPos(fd),col,22);land();await bsl(450);}
+  else if(INDIRECT.includes(w)){[0,110,220,330].forEach(d=>setTimeout(SFX.missile,skip?0:d));await Promise.all([0,110,220,330].map(d=>bMissile(fa,fd,col,d)));land();await bsl(350);}
   else{fa.dash=1;await bsl(300);if(!ev.ev)bSparks(bodyPos(fd),col,26);land();fa.spin=.5;await bsl(250);fa.dash=0;await bsl(300);}
   fa.aim=0;
 }
