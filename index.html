@@ -36,6 +36,14 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;fl
 .zoom .tog:disabled{opacity:.35;cursor:default}
 .mapscroll{overflow:auto;max-height:72vh;border-radius:14px}
 .mapinner{position:relative}
+.cmd{position:absolute;z-index:3;display:flex;flex-direction:column;gap:5px;padding:7px;width:158px;background:rgba(14,17,52,.95);border:1px solid var(--violet);border-radius:12px;box-shadow:0 0 14px rgba(179,148,255,.35);overflow:auto}
+.cmd[hidden]{display:none}
+.cmd.bar{flex-direction:row;width:auto;padding:5px;overflow:visible}
+.cmd.prod{display:grid;grid-template-columns:1fr 1fr;width:272px}
+.cmd.prod button{font-size:12px;padding:6px 8px;white-space:normal;line-height:1.3}
+.cmd.bar button{width:auto;white-space:nowrap;text-align:center}
+.cmd button{width:100%;text-align:left;padding:8px 10px;font-size:13px;border-radius:8px}
+.cmd button[aria-disabled="true"]{opacity:.45}
 .banner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;border-radius:14px}
 .banner div{font-family:var(--display);font-weight:700;font-size:clamp(22px,6vw,32px);letter-spacing:.1em;padding:10px 22px;border-radius:10px;background:rgba(11,14,42,.82);border:1px solid currentColor;text-shadow:0 0 12px currentColor}
 .banner.tap{pointer-events:auto;cursor:pointer}
@@ -102,7 +110,7 @@ select[data-lv]{max-width:100%}
   </header>
   <div class="mapbar"><div class="status" id="status"></div><div class="zoom"><button class="tog" id="zOut" aria-label="縮小">－</button><span id="zLbl"></span><button class="tog" id="zIn" aria-label="拡大">＋</button></div></div>
   <div class="mapwrap" id="mapwrap">
-    <div class="mapscroll" id="mapscroll"><div class="mapinner" id="mapinner"><canvas id="map"></canvas></div></div>
+    <div class="mapscroll" id="mapscroll"><div class="mapinner" id="mapinner"><canvas id="map"></canvas><div class="cmd" id="cmd" hidden></div></div></div>
     <div class="banner" id="banner" hidden></div>
     <div class="battle" id="battle" hidden>
       <div class="bhud"><div class="l"><div class="row"><span id="bnA">青軍</span><span id="bhA"></span></div><div class="bar"><i id="bbA"></i></div></div><div class="r"><div class="row"><span id="bnB">赤軍</span><span id="bhB"></span></div><div class="bar"><i id="bbB"></i></div></div></div>
@@ -306,7 +314,7 @@ function setZoom(n){
   const fx=CW?(sc.scrollLeft+sc.clientWidth/2)/CW:.5,fy=CH?(sc.scrollTop+sc.clientHeight/2)/CH:.5;
   zi=n;try{localStorage.setItem('gw_zoom',zi);}catch(e){}
   sizeMap();sc.scrollLeft=fx*CW-sc.clientWidth/2;sc.scrollTop=fy*CH-sc.clientHeight/2;
-  $('zLbl').textContent='マス '+ZOOMS[zi]+'×';$('zOut').disabled=zi===0;$('zIn').disabled=zi===ZOOMS.length-1;
+  $('zLbl').textContent='マス '+ZOOMS[zi]+'×';if(typeof updateCmd==='function'&&tiles)updateCmd();$('zOut').disabled=zi===0;$('zIn').disabled=zi===ZOOMS.length-1;
 }
 function focusTile(c,r){const sc=$('mapscroll');if(sc.scrollWidth<=sc.clientWidth+2&&sc.scrollHeight<=sc.clientHeight+2)return;const [x,y]=ctr(c,r);sc.scrollTo({left:x-sc.clientWidth/2,top:y-sc.clientHeight/2,behavior:'smooth'});}
 $('zOut').onclick=()=>setZoom(zi-1);$('zIn').onclick=()=>setZoom(zi+1);
@@ -439,7 +447,30 @@ function panelRoster(){
   const mine=units.filter(u=>u.side===cur),foe=units.filter(u=>u.side!==cur);
   panel(`<h2>出撃中の部隊</h2><div class="roster"><p class="muted">${SIDE[cur].n}（${mine.length}機）</p>${mine.map(row).join('')||'<p class="muted">なし</p>'}<p class="muted">${SIDE[1-cur].n}（${foe.length}機）</p>${foe.map(row).join('')||'<p class="muted">なし</p>'}</div><div class="btns"><button class="go" data-a="cancel">閉じる</button></div>`);
 }
-function panel(html){const P=$('panel'),had=P.contains(document.activeElement);P.innerHTML=html;if(had){const t=P.querySelector('button.go,button');if(t)t.focus({preventScroll:true});}}
+function movedBtns(){const T=tiles[sel.r][sel.c],canCap=TER[T.t].cap&&T.owner!==sel.side;
+  return `${atkButtons()}${canCap?'<button class="go" data-a="cap">占領'+(T.t==='H'?(T.cp&&T.cp.id===sel.id?'（完了）':'（1/2）'):'')+'</button>':''}<button data-a="wait">待機</button><button data-a="undo">戻る</button>`;}
+function updateCmd(){
+  const el=$('cmd');let h='',an=null,bar=false,prod=false;
+  if(!over&&mode==='play'&&!cpu[cur]){
+    if(sel&&phase==='select'){const mv=sel.c!==origin[0]||sel.r!==origin[1];if(mv){h='<button class="go" data-a="ok">決定</button><button data-a="cancel">取消</button>';an=[sel.c,sel.r];bar=true;}}
+    else if(sel&&phase==='moved'){h=movedBtns();an=[sel.c,sel.r];}
+    else if(sel&&phase==='target'){h='<button data-a="back">戻る</button>';an=[sel.c,sel.r];bar=true;}
+    else if(phase==='prod'&&prodSite){const f=funds[cur];
+      h=PRESETS.map((p,i)=>{const c=costOf(p.cfg);return `<button data-a="buy" data-i="${i}" aria-disabled="${c>f}">${p.n} ${c}G</button>`;}).join('')
+       +`<button class="go" data-a="gacha" data-m="99" aria-disabled="${GACHA_COST>f}">ガチャ ${GACHA_COST}G</button><button class="go" data-a="gacha" data-m="1000" aria-disabled="${GACHA2_COST>f}">超ガチャ ${GACHA2_COST}G</button><button data-a="cancel">閉じる</button>`;an=prodSite;prod=true;}
+  }
+  if(!h||!tiles){el.hidden=true;return;}
+  el.innerHTML=h;el.hidden=false;el.classList.toggle('bar',bar);el.classList.toggle('prod',prod);el.style.maxHeight=Math.max(120,CH-8)+'px';
+  const [x,y]=ctrL(an[0],an[1]),w=el.offsetWidth,hh=el.offsetHeight;
+  let left,top;
+  if(bar){left=Math.max(4,Math.min(CW-w-4,x-w/2));top=y-S*1.35-hh;if(top<4)top=y+S*.95;}
+  else{left=x+S*.95;if(left+w>CW-4)left=x-S*.95-w;left=Math.max(4,left);top=Math.max(4,Math.min(CH-hh-4,y-hh/2));}
+  el.style.left=left+'px';el.style.top=top+'px';
+  const sc=$('mapscroll');
+  if(left<sc.scrollLeft+4)sc.scrollLeft=left-4;else if(left+w>sc.scrollLeft+sc.clientWidth-4)sc.scrollLeft=left+w-sc.clientWidth+4;
+  if(top<sc.scrollTop+4)sc.scrollTop=top-4;else if(top+hh>sc.scrollTop+sc.clientHeight-4)sc.scrollTop=top+hh-sc.clientHeight+4;
+}
+function panel(html){const P=$('panel'),had=P.contains(document.activeElement);P.innerHTML=html;if(had){const t=P.querySelector('button.go,button');if(t)t.focus({preventScroll:true});}updateCmd();}
 function panelTitle(){
   panel(`<h2>MISSION SELECT</h2>
   <p>ロボット部隊を指揮して、敵の本拠地★を占領しよう。</p>
@@ -491,7 +522,7 @@ function panelProd(){
 }
 $('panel').addEventListener('change',e=>{if(e.target.dataset.lv){aiLv=+e.target.value;try{localStorage.setItem('gw_lv',aiLv);}catch(er){}statusUI();return;}
   const k=e.target.dataset.k;if(k){custom[k]=+e.target.value;panelProd();$('cu-'+k).focus({preventScroll:true});}});
-$('panel').addEventListener('click',async e=>{
+const onCmd=async e=>{
   const b=e.target.closest('button');if(!b)return;const a=b.dataset.a;
   if(a==='cpu'||a==='pvp'){newGame(a==='cpu');return;}
   if(busy)return;
@@ -520,7 +551,8 @@ $('panel').addEventListener('click',async e=>{
     funds[cur]-=c;spawn(cur,cfg,name,prodSite[0],prodSite[1]);SFX.produce();mapPop(prodSite[0],prodSite[1],'発進',SIDE[cur].css);
     prodSite=null;phase='idle';statusUI();panelIdle();
   }
-});
+};
+$('panel').addEventListener('click',onCmd);$('cmd').addEventListener('click',onCmd);
 $('sndTog').onclick=()=>{AU.on=!AU.on;$('sndTog').setAttribute('aria-pressed',AU.on);$('sndTog').textContent='サウンド '+(AU.on?'ON':'OFF');};
 $('bgmTog').onclick=()=>{AU.music=!AU.music;$('bgmTog').setAttribute('aria-pressed',AU.music);$('bgmTog').textContent='BGM '+(AU.music?'ON':'OFF');};
 $('animTog').onclick=()=>{anim=!anim;$('animTog').setAttribute('aria-pressed',anim);$('animTog').textContent='戦闘アニメ '+(anim?'ON':'OFF');};
