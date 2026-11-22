@@ -208,13 +208,13 @@ function newGame(vsCpu){
 }
 function spawn(side,cfg,name,c,r,raw){const st=raw?raw.map(v=>2+v/10):statsOf(cfg);const disp=raw||st.map(v=>Math.min(99,Math.max(1,Math.round((v-2)*10))));const u={id:++uid,side,cfg:{...cfg},name,st,disp,cost:Math.round(150+st.reduce((a,b)=>a+b,0)*15),max:maxHp(st),c,r,acted:true,moved:false};u.hp=u.max;units.push(u);return u;}
 const unitAt=(c,r)=>units.find(u=>u.c===c&&u.r===r);
-const TURN_LIMIT=30,GACHA_COST=300;
+const TURN_LIMIT=30,GACHA_COST=300,GACHA2_COST=1000;
 let aiLv=2;try{const v=+localStorage.getItem('gw_lv');if(v>=1&&v<=4)aiLv=v;}catch(e){}
 const AIL={1:{n:'よわい',skip:.45,inc:0,dmg:.85,threat:false,risk:.3},2:{n:'ふつう',skip:0,inc:0,dmg:1,threat:true,risk:.6},3:{n:'つよい',skip:0,inc:150,dmg:1,threat:true,risk:.9},4:{n:'げきつよ',skip:0,inc:300,dmg:1.15,threat:true,risk:1.2}};
 const AI=()=>AIL[aiLv];
 const lvOpts=()=>[1,2,3,4].map(i=>`<option value="${i}" ${aiLv===i?'selected':''}>Lv${i} ${AIL[i].n}</option>`).join('');
 const healTargets=u=>units.filter(a=>a!==u&&a.side===u.side&&a.hp<a.max&&dist(u.c,u.r,a.c,a.r)===1);
-function gachaRoll(){const raw=[0,1,2,3].map(()=>1+rnd(99));const sum=raw.reduce((a,b)=>a+b,0);const rank=sum>=290?'SSR':sum>=240?'SR':sum>=160?'R':'N';
+function gachaRoll(mx){mx=mx||99;const raw=[0,1,2,3].map(()=>1+rnd(mx));const sum=raw.reduce((a,b)=>a+b,0)*99/mx;const rank=sum>=290?'SSR':sum>=240?'SR':sum>=160?'R':'N';
   return {raw,rank,cfg:{head:rnd(3),body:rnd(3),weap:rnd(10)===0?HEAL:rnd(8),legs:rnd(3)}};}
 const initTiles=()=>MAP.map(row=>[...row].map(ch=>({t:ch==='B'||ch==='R'?'H':ch,owner:ch==='B'?0:ch==='R'?1:-1})));
 function resetBoard(){mode='title';tiles=initTiles();units=[];cur=0;turn=1;funds=[0,0];cpu=[false,true];sel=null;phase='idle';info=null;targets=[];over=false;busy=false;prodSite=null;bgmFast=false;$('banner').hidden=true;$('banner').onclick=null;}
@@ -349,7 +349,7 @@ function panel(html){const P=$('panel'),had=P.contains(document.activeElement);P
 function panelTitle(){
   panel(`<h2>MISSION SELECT</h2>
   <p>ロボット部隊を指揮して、敵の本拠地★を占領しよう。</p>
-  <ul class="rules"><li>自分のユニットをタップ → 移動先をタップ → 攻撃・占領・待機を選ぶ</li><li>ステーション◎と工廠■を占領すると毎ターン資金が増える</li><li>本拠地と工廠をタップすると新しいロボットを生産できる</li><li>脚で移動力、武器で射程が変わる（ミサイルは隣は撃てず、移動した後も撃てない）</li><li>本拠地の占領は2ターンかかる（途中で動くと最初から）</li><li>${TURN_LIMIT}ターンで決着しなければ、戦力評価で勝敗が決まる</li><li>生産メニューの「ガチャ」（${GACHA_COST}G）で、能力が1〜99ランダムのロボットが出る</li><li>メディックは隣の味方のHPを補給できる。「部隊一覧」で出撃中の全機の能力が見られる</li></ul>
+  <ul class="rules"><li>自分のユニットをタップ → 移動先をタップ → 攻撃・占領・待機を選ぶ</li><li>ステーション◎と工廠■を占領すると毎ターン資金が増える</li><li>本拠地と工廠をタップすると新しいロボットを生産できる</li><li>脚で移動力、武器で射程が変わる（ミサイルは隣は撃てず、移動した後も撃てない）</li><li>本拠地の占領は2ターンかかる（途中で動くと最初から）</li><li>${TURN_LIMIT}ターンで決着しなければ、戦力評価で勝敗が決まる</li><li>生産メニューの「ガチャ」（${GACHA_COST}G）は能力1〜99、「超ガチャ」（${GACHA2_COST}G）は能力1〜1000のランダムなロボットが出る</li><li>メディックは隣の味方のHPを補給できる。「部隊一覧」で出撃中の全機の能力が見られる</li></ul>
   <label>CPUのつよさ<select data-lv="1">${lvOpts()}</select></label>
   <div class="btns"><button class="go" data-a="cpu">CPUと対戦</button><button data-a="pvp">2人で対戦</button></div>`);
 }
@@ -380,7 +380,8 @@ function panelProd(){
   const f=funds[cur];
   const cc=costOf(custom),cs=statsOf(custom);
   panel(`<h2>生産（所持 ${f}G）</h2><div class="grid2">${PRESETS.map((p,i)=>{const c=costOf(p.cfg);return `<button class="preset" data-a="buy" data-i="${i}" aria-disabled="${c>f}">${p.n} ${c}G<span>${PART_N.weap[p.cfg.weap]}・${PART_N.legs[p.cfg.legs]}</span></button>`}).join('')}</div>
-  <h2>ガチャ</h2><p class="muted">能力（攻撃・防御・速度・重量）が1〜99ランダム。武器も全種類からランダム！</p><div class="btns"><button class="go" data-a="gacha" aria-disabled="${GACHA_COST>f}">ガチャを回す ${GACHA_COST}G</button></div>
+  <h2>ガチャ</h2><p class="muted">能力（攻撃・防御・速度・重量）が1〜99ランダム。武器も全種類からランダム！</p><div class="btns"><button class="go" data-a="gacha" data-m="99" aria-disabled="${GACHA_COST>f}">ガチャを回す ${GACHA_COST}G</button></div>
+  <h2>超ガチャ</h2><p class="muted">能力が1〜1000のランダム！とんでもない機体が出ることも。</p><div class="btns"><button class="go" data-a="gacha" data-m="1000" aria-disabled="${GACHA2_COST>f}">超ガチャを回す ${GACHA2_COST}G</button></div>
   <h2>カスタム</h2><div class="grid2">${KEYS.map(k=>`<label>${{head:'頭',body:'胴体',weap:'武器',legs:'脚'}[k]}<select id="cu-${k}" data-k="${k}">${PART_N[k].map((n,i)=>`<option value="${i}" ${custom[k]===i?'selected':''}>${n}</option>`).join('')}</select></label>`).join('')}</div>
   <div class="stats"><div>攻撃<b>${cs[0]}</b></div><div>防御<b>${cs[1]}</b></div><div>速度<b>${cs[2]}</b></div><div>重量<b>${cs[3]}</b></div></div>
   <div class="btns"><button class="go" data-a="buyc" aria-disabled="${cc>f}">カスタム機を生産 ${cc}G</button><button data-a="cancel">閉じる</button></div>`);
@@ -403,8 +404,9 @@ $('panel').addEventListener('click',async e=>{
   else if(a==='roster'){SFX.select();phase='idle';panelRoster();}
   else if(a==='focus'){const t=units.find(x=>x.id===+b.dataset.id);if(t){SFX.select();info=[t.c,t.r];phase='idle';panelIdle();}}
   else if(a==='gacha'){
-    if(GACHA_COST>funds[cur]){SFX.cancel();const t0=b.innerHTML;b.textContent='資金が足りません';setTimeout(()=>{if(b.isConnected)b.innerHTML=t0;},1200);return;}
-    const gr=gachaRoll();funds[cur]-=GACHA_COST;spawn(cur,gr.cfg,'ガチャ機['+gr.rank+']',prodSite[0],prodSite[1],gr.raw);
+    const gm=+b.dataset.m||99,gc=gm>99?GACHA2_COST:GACHA_COST;
+    if(gc>funds[cur]){SFX.cancel();const t0=b.innerHTML;b.textContent='資金が足りません';setTimeout(()=>{if(b.isConnected)b.innerHTML=t0;},1200);return;}
+    const gr=gachaRoll(gm);funds[cur]-=gc;spawn(cur,gr.cfg,(gm>99?'超ガチャ機[':'ガチャ機[')+gr.rank+']',prodSite[0],prodSite[1],gr.raw);
     (gr.rank==='SSR'||gr.rank==='SR'?SFX.capture:SFX.produce)();mapPop(prodSite[0],prodSite[1],gr.rank+'!',gr.rank==='SSR'?'#ffd75e':SIDE[cur].css);
     prodSite=null;phase='idle';statusUI();panelIdle();
   }
