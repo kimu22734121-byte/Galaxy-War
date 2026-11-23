@@ -36,6 +36,20 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px;fl
 .zoom .tog:disabled{opacity:.35;cursor:default}
 .mapscroll{overflow:auto;max-height:72vh;border-radius:14px}
 .mapinner{position:relative}
+.shell.title{display:flex;flex-direction:column;max-width:980px;margin:0 auto}
+.shell.title .mapbar,.shell.title .mapwrap,.shell.title .deck,.shell.title .legend,.shell.title #pTog{display:none}
+#titleView{display:none}.shell.title #titleView{display:flex;flex-direction:column;gap:14px}
+.tsec{background:var(--deck);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.tsec h2{margin:0;font-family:var(--display);font-size:13px;letter-spacing:.14em;color:var(--violet);font-weight:500}
+.tsec summary{cursor:pointer;font-family:var(--display);font-size:13px;color:var(--violet);letter-spacing:.1em}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mcard,.mapcard{display:flex;flex-direction:column;gap:3px;text-align:left;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--ink);letter-spacing:0}
+.mcard b,.mapcard b{font-family:var(--display);font-size:15px}
+.mcard span,.mapcard span{font-family:var(--body);font-weight:400;font-size:12px;color:var(--dim)}
+.mcard[aria-pressed="true"],.mapcard[aria-pressed="true"]{border-color:var(--blue);box-shadow:0 0 14px rgba(94,242,255,.4);background:rgba(94,242,255,.07)}
+.maps{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.mapcard canvas{width:100%;height:auto;border-radius:8px;background:#0b0e2a;margin-bottom:4px}
+button.big{font-size:18px;padding:14px 20px;width:100%}
 .cmd{touch-action:pan-y;overscroll-behavior:contain;position:absolute;z-index:3;display:flex;flex-direction:column;gap:5px;padding:7px;width:158px;background:rgba(14,17,52,.95);border:1px solid var(--violet);border-radius:12px;box-shadow:0 0 14px rgba(179,148,255,.35);overflow:auto}
 .cmd[hidden]{display:none}
 .cs{font-size:12px;line-height:1.4;color:var(--dim);padding:2px 4px 5px;border-bottom:1px solid var(--line);grid-column:1/-1;flex-basis:100%;white-space:nowrap}
@@ -117,11 +131,12 @@ select[data-lv]{max-width:100%}
 </style>
 </head>
 <body>
-<div class="shell">
+<div class="shell title" id="shell">
   <header>
     <div class="mark">GALAXY <span>WAR</span></div>
     <div class="btns"><button class="tog" id="sndTog" aria-pressed="true">サウンド ON</button><button class="tog" id="bgmTog" aria-pressed="true">BGM ON</button><button class="tog" id="animTog" aria-pressed="true">戦闘アニメ ON</button><button class="tog" id="pTog" aria-pressed="true">パネル ▼</button></div>
   </header>
+  <div id="titleView"></div>
   <div class="mapbar"><div class="status" id="status"></div><div class="zoom"><button class="tog" id="zOut" aria-label="縮小">－</button><span id="zLbl"></span><button class="tog" id="zIn" aria-label="拡大">＋</button></div></div>
   <div class="mapwrap" id="mapwrap">
     <div class="mapscroll" id="mapscroll"><div class="mapinner" id="mapinner"><canvas id="map"></canvas><div class="cmd" id="cmd" hidden></div></div></div>
@@ -186,6 +201,8 @@ const SFX={
   capture:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.13,'square',.11,1,i*.08)),
   produce:()=>[392,523,659,784].forEach((f,i)=>tone(f,.1,'triangle',.15,1,i*.06)),
   heal:()=>[659,784,988,1319].forEach((f,i)=>tone(f,.12,'sine',.14,1,i*.07)),
+  start:()=>[392,523,659,784,1047].forEach((f,i)=>tone(f,.14,'square',.12,1,i*.07)),
+  alert:()=>{tone(880,.12,'sawtooth',.1);tone(660,.2,'sawtooth',.1,1,.14);},
   turn:()=>{tone(392,.14,'square',.11);tone(587,.28,'square',.11,1,.12);},
   win:()=>[523,659,784,1047,784,1047].forEach((f,i)=>tone(f,.24,'square',.13,1,i*.15)),
   lose:()=>[392,349,311,262].forEach((f,i)=>tone(f,.34,'triangle',.15,1,i*.24))
@@ -205,11 +222,15 @@ const TRACKS={
   {n:'スペース・ドリフト',bpm:108,prog:[[57,60,64],[53,57,60],[48,52,55],[55,59,62]],bass:BS.drift,bw:'triangle',bv:.4,bl:1.7,lead:LD.arp,lw:'square',lv:.05,ll:.85,drum:DR.drift},
   {n:'スターライト・マーチ',bpm:132,prog:[[60,64,67],[55,59,62],[57,60,64],[53,57,60]],bass:BS.drive,bw:'triangle',bv:.45,bl:.8,lead:LD.a,lw:'square',lv:.06,ll:.7,drum:DR.four},
   {n:'コスモ・ラン',bpm:148,prog:[[53,57,60],[55,59,62],[52,55,59],[57,60,64]],bass:BS.pulse,bw:'triangle',bv:.42,bl:.6,lead:LD.b,lw:'sawtooth',lv:.045,ll:.6,drum:DR.sync},
+  {n:'ネオン・シティ',bpm:138,prog:[[65,69,72],[67,71,74],[64,67,71],[60,64,67]],bass:BS.off,bw:'triangle',bv:.45,bl:.8,lead:LD.b,lw:'square',lv:.055,ll:.6,drum:DR.sync},
+  {n:'サンライズ・ドライブ',bpm:116,prog:[[60,64,67],[57,60,64],[53,57,60],[55,59,62]],bass:BS.drive,bw:'triangle',bv:.45,bl:.9,lead:LD.a,lw:'sawtooth',lv:.04,ll:.7,drum:DR.half},
   {n:'ギャラクシー・ポップ',bpm:124,prog:[[62,66,69],[57,61,64],[59,62,66],[55,59,62]],bass:BS.off,bw:'triangle',bv:.45,bl:.9,lead:LD.c,lw:'square',lv:.06,ll:.6,drum:DR.half}],
  enemy:[
   {n:'ダーク・パルス',bpm:140,prog:[[50,53,57],[58,62,65],[48,52,55],[57,61,64]],bass:BS.pulse,bw:'sawtooth',bv:.3,bl:.6,lead:LD.stab,lw:'sawtooth',lv:.06,ll:.5,drum:DR.march},
   {n:'クリムゾン・アラーム',bpm:156,prog:[[52,55,59],[48,52,55],[50,54,57],[47,51,54]],bass:BS.drive,bw:'sawtooth',bv:.3,bl:.55,lead:LD.d,lw:'square',lv:.055,ll:.5,drum:DR.four},
   {n:'ブラックホール',bpm:128,prog:[[57,60,64],[50,53,57],[52,56,59],[57,60,64]],bass:BS.pulse,bw:'triangle',bv:.5,bl:.7,lead:LD.arp,lw:'sawtooth',lv:.04,ll:.6,drum:DR.half},
+  {n:'デス・スター',bpm:134,prog:[[50,53,57],[46,50,53],[48,52,55],[45,48,52]],bass:BS.pulse,bw:'sawtooth',bv:.32,bl:.6,lead:LD.d,lw:'square',lv:.05,ll:.5,drum:DR.march},
+  {n:'ラスト・ボス',bpm:160,prog:[[52,55,59],[53,57,60],[52,55,59],[51,55,58]],bass:BS.pulse,bw:'sawtooth',bv:.3,bl:.45,lead:LD.arp,lw:'sawtooth',lv:.045,ll:.4,drum:DR.four},
   {n:'ウォー・ドラム',bpm:118,prog:[[48,51,55],[56,60,63],[58,62,65],[55,58,62]],bass:BS.walk,bw:'sawtooth',bv:.32,bl:1.1,lead:LD.stab,lw:'square',lv:.06,ll:.6,drum:DR.march}]};
 const bgmSel={ally:1,enemy:0};
 try{const v=JSON.parse(localStorage.getItem('gw_bgm')||'null');if(v){['ally','enemy'].forEach(k=>{if(Number.isInteger(v[k])&&v[k]>=0&&v[k]<TRACKS[k].length)bgmSel[k]=v[k];});}}catch(e){}
@@ -240,7 +261,15 @@ function bgmNote(s,w,st,T){
 
 /* ---------- data ---------- */
 const COLS=11,ROWS=9;
-const MAP=["B.a...n.s..","..a.s...a..","f...n.x..s.",".a..a...n..","s.n..f..n.s","..n...a..a.",".s..x.n...f","..a...s.a..","..s.n...a.R"];
+function mkMap(top,mid){const rev=s=>[...s].reverse().join('').replace(/B/g,'R');return [...top,mid+rev(mid.slice(0,5)),...top.slice().reverse().map(rev)];}
+const MAPS=[
+ {n:'星海の戦場',desc:'標準のマップ。バランスよく拠点が散らばる。',rows:mkMap(["B.a...n.s..","..a.s...a..","f...n.x..s.",".a..a...n.."],"s.n..f")},
+ {n:'小惑星帯',desc:'小惑星だらけ。守りは固いが進みにくい。',rows:mkMap(["B..a.aa..s.",".aa..a.aa..",".s.aa.a..af","aa..a.s.aa."],"a.aa.f")},
+ {n:'星雲の迷宮',desc:'星雲で回避しやすい。基地は左右の中央。',rows:mkMap(["..n.n...s..",".nn.n.nn.n.","f.n..n.n.s.","n.s.n.nn..n"],"B.nn.f")},
+ {n:'ブラックホール回廊',desc:'通れない穴で道が細い。待ち伏せ向き。',rows:mkMap(["B..x...x.s.",".s.x.a.x..f","...x.n...a.","xx.....xx.s"],"..a..f")},
+ {n:'資源争奪戦',desc:'拠点がたくさん。占領合戦で稼ぐ。',rows:mkMap(["B...n...s..","..a.s.f.a..",".a.s.n.s.a.","..f.a.s.n.."],"s.n.sf")}];
+const setup={mode:'cpu',map:0};
+try{const v=JSON.parse(localStorage.getItem('gw_setup')||'null');if(v){if(v.mode==='pvp')setup.mode='pvp';if(Number.isInteger(v.map)&&v.map>=0&&v.map<MAPS.length)setup.map=v.map;}}catch(e){}
 const TER={'.':{n:'宇宙空間',cost:1,def:0,ev:0},a:{n:'小惑星帯',cost:2,def:2,ev:0},n:{n:'星雲',cost:2,def:0,ev:.12},x:{n:'ブラックホール',cost:99,def:0,ev:0},
  s:{n:'ステーション',cost:1,def:1,ev:0,inc:150,cap:1},f:{n:'工廠',cost:1,def:1,ev:0,inc:150,cap:1,prod:1},H:{n:'本拠地',cost:1,def:2,ev:0,inc:400,cap:1,prod:1}};
 const SIDE=[{n:'青軍',css:'#5ef2ff',cls:'b',c3:[0x5ef2ff,0xff5ce1,0xb394ff,0xffd75e]},{n:'赤軍',css:'#ff6a4d',cls:'r',c3:[0xff7a59,0xff3b6b,0xffb347,0x9fa8ff]}];
@@ -277,10 +306,10 @@ let useSlot=0;
 function newGame(vsCpu){
   tiles=initTiles();
   units=[];funds=[800,800];cur=0;turn=1;cpu=[false,!!vsCpu];over=false;sel=null;phase='idle';
-  spawn(0,PRESETS[0].cfg,PRESETS[0].n,1,0);spawn(0,PRESETS[1].cfg,PRESETS[1].n,0,1);
-  spawn(1,PRESETS[0].cfg,PRESETS[0].n,9,8);spawn(1,PRESETS[1].cfg,PRESETS[1].n,10,7);
+  [0,1].forEach(side=>{const h=hqOf(side),free=nbrs(h[0],h[1]).filter(([c,r])=>tiles[r][c].t!=='x');
+    spawn(side,PRESETS[0].cfg,PRESETS[0].n,free[0][0],free[0][1]);spawn(side,PRESETS[1].cfg,PRESETS[1].n,free[1][0],free[1][1]);});
   units.forEach(u=>u.acted=false);
-  mode='play';beginTurn();
+  mode='play';showGame();beginTurn();setTimeout(()=>{const h=hqOf(0);if(h)focusTile(h[0],h[1]);},50);
 }
 function spawn(side,cfg,name,c,r,raw,aura){const st=raw?raw.map(v=>2+v/10):statsOf(cfg);const disp=raw||st.map(v=>Math.min(99,Math.max(1,Math.round((v-2)*10))));const w2=cfg.weap2>=0?cfg.weap2:-1;const u={id:++uid,side,cfg:{...cfg,weap2:w2},ws:[cfg.weap,w2],aura:!!aura,name,st,disp,cost:Math.round(150+st.reduce((a,b)=>a+b,0)*15),max:maxHp(st),c,r,acted:true,moved:false};u.hp=u.max;units.push(u);return u;}
 const unitAt=(c,r)=>units.find(u=>u.c===c&&u.r===r);
@@ -297,7 +326,7 @@ function wPick(ex){const list=GW.filter(x=>x[0]!==ex),t=list.reduce((a,b)=>a+b[1
 function gachaRoll(mn,mx){mn=mn||1;mx=mx||99;const raw=[0,1,2,3].map(()=>mn+rnd(mx-mn+1));const sum=raw.reduce((a,b)=>a+b,0),s99=4+(sum-4*mn)/(4*(mx-mn))*392;
   const rank=s99>=290?'SSR':s99>=240?'SR':s99>=160?'R':'N';const w1=wPick(-1),w2=rnd(100)<6?HEAL:wPick(w1);
   return {raw,rank,cfg:{head:rnd(3),body:rnd(3),weap:w1,weap2:w2,legs:rnd(3)}};}
-const initTiles=()=>MAP.map(row=>[...row].map(ch=>({t:ch==='B'||ch==='R'?'H':ch,owner:ch==='B'?0:ch==='R'?1:-1})));
+const initTiles=()=>MAPS[setup.map].rows.map(row=>[...row].map(ch=>({t:ch==='B'||ch==='R'?'H':ch,owner:ch==='B'?0:ch==='R'?1:-1})));
 function resetBoard(){mode='title';tiles=initTiles();units=[];cur=0;turn=1;funds=[0,0];cpu=[false,true];sel=null;phase='idle';info=null;targets=[];over=false;busy=false;prodSite=null;bgmFast=false;$('banner').hidden=true;$('banner').onclick=null;}
 function hqOf(s){for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(tiles[r][c].t==='H'&&tiles[r][c].owner===s)return [c,r];return null;}
 function scoreOf(s){return funds[s]+units.filter(u=>u.side===s).reduce((a,u)=>a+Math.round(u.cost*u.hp/u.max),0)+tiles.flat().filter(t=>TER[t.t].cap&&t.owner===s).length*200;}
@@ -484,7 +513,7 @@ function mapPop(c,r,text,color){
   el.style.left=x+'px';el.style.top=(y-S*.4)+'px';$('mapinner').appendChild(el);setTimeout(()=>el.remove(),950);
 }
 let lastDraw=0;
-function tick(now){tNow=now/1000;if(bR&&!$('battle').hidden)battleFrame();else if(now-lastDraw>=30){lastDraw=now;draw();}}
+function tick(now){tNow=now/1000;if(bR&&!$('battle').hidden)battleFrame();else if(mode!=='title'&&now-lastDraw>=30){lastDraw=now;draw();}}
 function loop(now){tick(now);requestAnimationFrame(loop);}
 setInterval(()=>{if(document.hidden)tick(performance.now());},100);
 const nextFrame=cb=>document.hidden?setTimeout(cb,50):requestAnimationFrame(cb);
@@ -537,14 +566,38 @@ function updateCmd(){
   if(top<sc.scrollTop+4)sc.scrollTop=top-4;else if(top+hh>sc.scrollTop+sc.clientHeight-4)sc.scrollTop=top+hh-sc.clientHeight+4;
 }
 function panel(html){const P=$('panel'),had=P.contains(document.activeElement);P.innerHTML=html;if(had){const t=P.querySelector('button.go,button');if(t)t.focus({preventScroll:true});}cmdOff=false;updateCmd();}
-function panelTitle(){
-  panel(`<h2>MISSION SELECT</h2>
-  <p>ロボット部隊を指揮して、敵の本拠地★を占領しよう。</p>
-  <ul class="rules"><li>自分のユニットをタップ → 移動先をタップ → 攻撃・占領・待機を選ぶ</li><li>ステーション◎と工廠■を占領すると毎ターン資金が増える</li><li>本拠地と工廠をタップすると新しいロボットを生産できる</li><li>脚で移動力、武器で射程が変わる（ミサイルは隣は撃てず、移動した後も撃てない）</li><li>本拠地の占領は2ターンかかる（途中で動くと最初から）</li><li>${TURN_LIMIT}ターンで決着しなければ、戦力評価で勝敗が決まる</li><li>生産メニューの「ガチャ」（${GACHA_COST}G）は能力1〜99、「超ガチャ」（${GACHA2_COST}G）は能力200〜1000のランダムなロボットが出る。ロボットは右腕・左腕に別々の武器を持てる</li><li>メディックは隣の味方のHPを補給できる。「部隊一覧」で出撃中の全機の能力が見られる</li></ul>
-  ${bgmSelHTML()}
-  <label>CPUのつよさ<select data-lv="1">${lvOpts()}</select></label>
-  <div class="btns"><button class="go" data-a="cpu">CPUと対戦</button><button data-a="pvp">2人で対戦</button></div>`);
+function drawMini(cv0,rows){
+  const c2=cv0.getContext('2d'),W=cv0.width,H=cv0.height,sz=W/(Math.sqrt(3)*11.5),yy=.8;
+  c2.fillStyle='#0b0e2a';c2.fillRect(0,0,W,H);
+  const col={'.':'#1c2160',a:'#7b7fb5',n:'#b055d8',x:'#000',s:'#9fe9ff',f:'#ffd75e',H:'#fff'};
+  for(let r=0;r<9;r++)for(let c=0;c<11;c++){const ch=rows[r][c],x=4+sz*Math.sqrt(3)*(c+.5*(r&1))+sz*Math.sqrt(3)/2,y=H*.1+sz*yy+1.5*sz*yy*r;
+    c2.beginPath();for(let k=0;k<6;k++){const a=Math.PI/180*(60*k-30);c2.lineTo(x+sz*.94*Math.cos(a),y+sz*.94*yy*Math.sin(a));}c2.closePath();
+    c2.fillStyle=ch==='x'?'#000':'#10143c';c2.fill();c2.strokeStyle='#2a2f6b';c2.lineWidth=.6;c2.stroke();
+    if(ch==='B'||ch==='R'){c2.fillStyle=ch==='B'?'#5ef2ff':'#ff6a4d';c2.beginPath();c2.arc(x,y,sz*.62,0,7);c2.fill();}
+    else if(ch==='a'||ch==='n'){c2.fillStyle=col[ch];c2.globalAlpha=.8;c2.beginPath();c2.arc(x,y,sz*.42,0,7);c2.fill();c2.globalAlpha=1;}
+    else if(ch==='s'){c2.fillStyle=col.s;c2.beginPath();c2.arc(x,y,sz*.3,0,7);c2.fill();}
+    else if(ch==='f'){c2.fillStyle=col.f;c2.fillRect(x-sz*.32,y-sz*.28,sz*.64,sz*.56);}
+    else if(ch==='x'){c2.strokeStyle='#7a62d6';c2.lineWidth=.8;c2.beginPath();c2.arc(x,y,sz*.45,0,7);c2.stroke();}}
 }
+function renderTitle(){
+  const t=$('titleView');
+  t.innerHTML=`<section class="tsec"><h2>1. 対戦方法</h2>
+    <div class="modes"><button class="mcard" data-t="mode" data-v="cpu" aria-pressed="${setup.mode==='cpu'}"><b>CPUと対戦</b><span>ひとりで遊ぶ</span></button><button class="mcard" data-t="mode" data-v="pvp" aria-pressed="${setup.mode==='pvp'}"><b>2人で対戦</b><span>1台を交互に操作</span></button></div>
+    <label ${setup.mode==='cpu'?'':'hidden'}>CPUのつよさ<select data-lv="1">${lvOpts()}</select></label></section>
+  <section class="tsec"><h2>2. マップ</h2><div class="maps">${MAPS.map((m,i)=>`<button class="mapcard" data-t="map" data-v="${i}" aria-pressed="${setup.map===i}"><canvas width="264" height="204" data-mm="${i}"></canvas><b>${i+1}. ${m.n}</b><span>${m.desc}</span></button>`).join('')}</div></section>
+  <section class="tsec"><h2>3. 音楽</h2>${bgmSelHTML()}<p class="muted">曲を選ぶと試聴できます（味方＝自分のターン、敵＝相手のターンで流れる曲）。サウンドのON/OFFは右上のボタンで。</p></section>
+  <button class="go big" data-t="start">出撃！</button>
+  <details class="tsec"><summary>あそびかた</summary><ul class="rules"><li>自分のユニットをタップ → 移動先をタップ → 攻撃・占領・待機を選ぶ</li><li>ステーション◎と工廠■を占領すると毎ターン資金が増える</li><li>本拠地と工廠をタップすると新しいロボットを生産できる（ガチャもあり）</li><li>脚で移動力、右腕・左腕の武器で射程と攻撃方法が変わる</li><li>本拠地の占領は2ターンかかる。30ターンで決着しなければ戦力評価で勝敗が決まる</li><li>メディックは隣の味方のHPを補給できる。「部隊一覧」で全機の能力が見られる</li></ul></details>`;
+  t.querySelectorAll('canvas[data-mm]').forEach(c=>drawMini(c,MAPS[+c.dataset.mm].rows));
+}
+function enterTitle(){resetBoard();$('shell').classList.add('title');$('panel').innerHTML='';renderTitle();statusUI();window.scrollTo(0,0);}
+function showGame(){$('shell').classList.remove('title');setZoom(zi);}
+$('titleView').addEventListener('click',e=>{const b=e.target.closest('button[data-t]');if(!b)return;const t=b.dataset.t;
+  if(t==='mode'){SFX.select();setup.mode=b.dataset.v;}
+  else if(t==='map'){SFX.select();setup.map=+b.dataset.v;}
+  else if(t==='start'){try{localStorage.setItem('gw_setup',JSON.stringify(setup));}catch(er){}auInit();SFX.start();newGame(setup.mode==='cpu');return;}
+  try{localStorage.setItem('gw_setup',JSON.stringify(setup));}catch(er){}
+  renderTitle();});
 function panelIdle(){
   if(over)return;
   if(cpu[cur]){panel(`<h2>ENEMY PHASE</h2><p class="muted">${SIDE[cur].n}が行動中…</p>`);return;}
@@ -587,16 +640,17 @@ function panelProd(){
   <div class="stats"><div>攻撃<b>${cs[0]}</b></div><div>防御<b>${cs[1]}</b></div><div>速度<b>${cs[2]}</b></div><div>重量<b>${cs[3]}</b></div></div>
   <div class="btns"><button class="go" data-a="buyc" aria-disabled="${cc>f}">カスタム機を生産 ${cc}G</button><button data-a="cancel">閉じる</button></div>`);
 }
-$('panel').addEventListener('change',e=>{if(e.target.dataset.bgm){const k=e.target.dataset.bgm;bgmSel[k]=+e.target.value;try{localStorage.setItem('gw_bgm',JSON.stringify(bgmSel));}catch(er){}bgmPrev=k;bgmPrevT=performance.now()+8000;auInit();return;}
+const onChange=e=>{if(e.target.dataset.bgm){const k=e.target.dataset.bgm;bgmSel[k]=+e.target.value;try{localStorage.setItem('gw_bgm',JSON.stringify(bgmSel));}catch(er){}bgmPrev=k;bgmPrevT=performance.now()+8000;auInit();return;}
   if(e.target.dataset.lv){aiLv=+e.target.value;try{localStorage.setItem('gw_lv',aiLv);}catch(er){}statusUI();return;}
-  const k=e.target.dataset.k;if(k){custom[k]=+e.target.value;panelProd();$('cu-'+k).focus({preventScroll:true});}});
+  const k=e.target.dataset.k;if(k){custom[k]=+e.target.value;panelProd();$('cu-'+k).focus({preventScroll:true});}};
+$('panel').addEventListener('change',onChange);$('titleView').addEventListener('change',onChange);
 const onCmd=async e=>{
   const b=e.target.closest('button');if(!b)return;const a=b.dataset.a;
   if(a==='cpu'||a==='pvp'){newGame(a==='cpu');return;}
   if(a==='closecmd'||(a==='cancel'&&b.closest('#cmd'))){cmdOff=true;$('cmd').hidden=true;if(a==='closecmd')return;}
   if(busy)return;
   if(a==='end'){SFX.select();endTurn();}
-  else if(a==='quit'){resetBoard();statusUI();panelTitle();}
+  else if(a==='quit'){enterTitle();}
   else if(a==='surrender'){if(confirm(SIDE[cur].n+'が降参しますか？'))showResult(1-cur,SIDE[cur].n+'が降参した');}
   else if(a==='cancel'){SFX.cancel();restoreSel();if(phase==='prod')info=null;sel=null;phase='idle';prodSite=null;panelIdle();}
   else if(a==='atk'){SFX.select();useSlot=+b.dataset.s||0;targets=targetsFor(sel,useSlot);phase='target';panelTarget();}
@@ -883,8 +937,7 @@ function battleFrame(){
 }
 
 /* ---------- boot ---------- */
-resetBoard();
-setPanel(panelOpen);panelTitle();statusUI();requestAnimationFrame(loop);
+setPanel(panelOpen);enterTitle();requestAnimationFrame(loop);
 </script>
 </body>
 </html>
