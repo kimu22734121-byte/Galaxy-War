@@ -79,6 +79,11 @@ button.big{font-size:18px;padding:14px 20px;width:100%}
 .bhud .r .bar i{background:var(--red);box-shadow:0 0 8px var(--red);margin-left:auto}
 .bskip{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:12px;color:var(--dim);pointer-events:none}
 .pop.dmg{font-weight:800;color:#ff3b4d;text-shadow:0 0 5px #ff1a2e,0 0 14px rgba(255,30,50,.8);-webkit-text-stroke:.6px rgba(255,235,235,.55);paint-order:stroke fill}
+.bsp{position:absolute;left:0;right:0;top:30%;text-align:center;z-index:7;pointer-events:none;font-family:var(--display);font-weight:800;font-size:clamp(30px,9vw,46px);letter-spacing:.14em;color:#ffd75e;text-shadow:0 0 10px #ff8a00,0 0 26px #ff3b4d;animation:bsp 1.15s ease-out forwards}
+.bsp small{display:block;font-size:.42em;letter-spacing:.25em;color:#fff;text-shadow:0 0 8px #ff3b4d}
+@keyframes bsp{0%{opacity:0;transform:scale(2.4) skewX(-10deg)}18%{opacity:1;transform:scale(1) skewX(-10deg)}78%{opacity:1}100%{opacity:0;transform:scale(1.05) skewX(-10deg)}}
+.bflash{position:absolute;inset:0;background:#fff;z-index:7;pointer-events:none;opacity:0;animation:bfl .45s ease-out forwards}
+@keyframes bfl{0%{opacity:.85}100%{opacity:0}}
 .pop small{display:block;font-size:10px;font-weight:500;color:var(--dim);text-shadow:none;letter-spacing:0;text-align:center;white-space:nowrap}
 .bt{font-size:10px;color:var(--amber);margin-top:3px;font-family:var(--body);white-space:nowrap}
 .pop{position:absolute;font-family:var(--display);font-weight:700;font-size:20px;pointer-events:none;transform:translate(-50%,-50%);animation:rise .9s ease-out forwards;text-shadow:0 0 10px currentColor;z-index:6}
@@ -206,6 +211,7 @@ const SFX={
   heal:()=>[659,784,988,1319].forEach((f,i)=>tone(f,.12,'sine',.14,1,i*.07)),
   start:()=>[392,523,659,784,1047].forEach((f,i)=>tone(f,.14,'square',.12,1,i*.07)),
   alert:()=>{tone(880,.12,'sawtooth',.1);tone(660,.2,'sawtooth',.1,1,.14);},
+  special:()=>{[392,523,659,784,1047,1319].forEach((f,i)=>tone(f,.16,'sawtooth',.12,1,i*.06));noise(.7,.3,.35,3000);},
   turn:()=>{tone(392,.14,'square',.11);tone(587,.28,'square',.11,1,.12);},
   win:()=>[523,659,784,1047,784,1047].forEach((f,i)=>tone(f,.24,'square',.13,1,i*.15)),
   lose:()=>[392,349,311,262].forEach((f,i)=>tone(f,.34,'triangle',.15,1,i*.24))
@@ -364,8 +370,8 @@ function strike(a,d,w){
   const T=TER[tiles[d.r][d.c].t];
   const evc=Math.min(.4,Math.max(.03,.08+(d.st[2]-a.st[2])*.03+T.ev+(w===0||w===4?-.05:0)));
   if(Math.random()<evc)return {ev:true,dmg:0,crit:false,tev:T.ev};
-  const crit=Math.random()<.15;
-  return {ev:false,crit,tdef:T.def*2,dmg:Math.max(3,Math.round((9+a.st[0]*2.3)*(WP[w]||1)*(.85+Math.random()*.3)*(crit?1.6:1)*(cpu[a.side]?AI().dmg:1)-d.st[1]*1.3-T.def*2))};
+  const sp=Math.random()<.09,crit=!sp&&Math.random()<.15;
+  return {ev:false,crit,sp,tdef:T.def*2,dmg:Math.max(3,Math.round((9+a.st[0]*2.3)*(WP[w]||1)*(.85+Math.random()*.3)*(sp?1.8:crit?1.6:1)*(cpu[a.side]?AI().dmg:1)-d.st[1]*1.3-T.def*2))};
 }
 function expDmg(a,d,dc,dr,w){const T=TER[tiles[dr][dc].t];return Math.max(3,(9+a.st[0]*2.3)*(w===undefined?Math.max(1,...atkW(a).map(x=>WP[x])):(WP[w]||1))-d.st[1]*1.3-T.def*2);}
 function pickCounter(d,a){let best=null;d.ws.forEach((w,s)=>{if(w<0||w===HEAL||!inRange(d,d.c,d.r,a,w))return;if(!best||(WP[w]||1)>(WP[best.w]||1))best={w,arm:s};});return best;}
@@ -594,7 +600,7 @@ function renderTitle(){
   <section class="tsec"><h2>2. マップ</h2><div class="maps">${MAPS.map((m,i)=>`<button class="mapcard" data-t="map" data-v="${i}" aria-pressed="${setup.map===i}"><canvas width="264" height="204" data-mm="${i}"></canvas><b>${i+1}. ${m.n}</b><span>${m.desc}</span></button>`).join('')}</div></section>
   <section class="tsec"><h2>3. 音楽</h2>${bgmSelHTML()}<p class="muted">曲を選ぶと試聴できます（味方＝自分のターン、敵＝相手のターンで流れる曲）。サウンドのON/OFFは右上のボタンで。</p></section>
   <button class="go big" data-t="start">出撃！</button>
-  <details class="tsec"><summary>あそびかた</summary><ul class="rules"><li>自分のユニットをタップ → 移動先をタップ → 攻撃・占領・待機を選ぶ</li><li>ステーション◎と工廠■を占領すると毎ターン資金が増える</li><li>本拠地と工廠をタップすると新しいロボットを生産できる（ガチャもあり）</li><li>脚で移動力、右腕・左腕の武器で射程と攻撃方法が変わる</li><li>本拠地の占領は2ターンかかる。30ターンで決着しなければ戦力評価で勝敗が決まる</li><li>メディックは隣の味方のHPを補給できる。「部隊一覧」で全機の能力が見られる</li></ul></details>`;
+  <details class="tsec"><summary>あそびかた</summary><ul class="rules"><li>自分のユニットをタップ → 移動先をタップ → 攻撃・占領・待機を選ぶ</li><li>ステーション◎と工廠■を占領すると毎ターン資金が増える</li><li>本拠地と工廠をタップすると新しいロボットを生産できる（ガチャもあり）</li><li>脚で移動力、右腕・左腕の武器で射程と攻撃方法が変わる</li><li>攻撃はたまに「必殺技」が出て、ダメージが1.8倍になる（敵も出す）</li><li>本拠地の占領は2ターンかかる。30ターンで決着しなければ戦力評価で勝敗が決まる</li><li>メディックは隣の味方のHPを補給できる。「部隊一覧」で全機の能力が見られる</li></ul></details>`;
   t.querySelectorAll('canvas[data-mm]').forEach(c=>drawMini(c,MAPS[+c.dataset.mm].rows));
 }
 function enterTitle(){resetBoard();$('shell').classList.add('title');$('panel').innerHTML='';renderTitle();statusUI();window.scrollTo(0,0);}
@@ -733,7 +739,7 @@ async function doAttack(a,d,slot){
   if(fx){try{await playBattle(a,d,evs);}catch(err){console.error(err);fx=false;anim=false;bR=null;const bt=$('battle');bt.hidden=true;const cvs=bt.querySelector('canvas');if(cvs)cvs.remove();bgmFast=false;const t=$('animTog');t.setAttribute('aria-pressed',false);t.textContent='戦闘アニメ OFF（使用不可）';}}
   for(const ev of evs){
     ev.def.hp=Math.max(0,ev.def.hp-ev.dmg);
-    if(!fx){SFX[WEAPON_SFX[ev.w]]();await sleep(250);ev.ev?SFX.miss():SFX.hit();mapPop(ev.def.c,ev.def.r,ev.ev?'MISS':(ev.crit?'!':'')+ev.dmg,ev.ev?'#a2a4d6':'#ff3040');await sleep(450);}
+    if(!fx){SFX[WEAPON_SFX[ev.w]]();await sleep(250);ev.ev?SFX.miss():SFX.hit();mapPop(ev.def.c,ev.def.r,ev.ev?'MISS':(ev.sp?'必殺!':ev.crit?'!':'')+ev.dmg,ev.ev?'#a2a4d6':'#ff3040');await sleep(450);}
   }
   for(const u of [a,d])if(u.hp<=0){if(!fx)SFX.boom();units.splice(units.indexOf(u),1);mapPop(u.c,u.r,'撃破','#ffd75e');}
   busy=false;statusUI();checkWin();
@@ -903,12 +909,15 @@ function bMissile(fa,fd,color,delay){return new Promise(res=>{setTimeout(()=>{co
 function bPop(f,text,color,o){o=o||{};const v=bodyPos(f);v.y+=1.3;v.project(bCam);const el=document.createElement('div');el.className='pop'+(o.dmg?' dmg':'');if(!o.dmg)el.style.color=color;el.style.fontSize=(o.size||22)+'px';
   el.innerHTML=text+(o.sub?`<small>${o.sub}</small>`:'');
   const bt=$('battle');el.style.left=((v.x+1)/2*bt.clientWidth+(Math.random()-.5)*26)+'px';el.style.top=((1-v.y)/2*bt.clientHeight+(o.dy||0))+'px';bt.appendChild(el);setTimeout(()=>el.remove(),1000);}
+const SPN=['ギガ・ブラスト','ミサイル・ストーム','ドリル・ブレイク','ギャラクシー斬','超電磁砲','ガトリング・ラッシュ','メテオ・クラッシュ','グレネード・バースト'];
 function splitDmg(t,n){if(n<=1)return [t];const w=Array.from({length:n},()=>.6+Math.random()),sm=w.reduce((a,b)=>a+b,0),p=w.map(x=>Math.floor(t*x/sm));let r=t-p.reduce((a,b)=>a+b,0);for(let i=0;r>0;i=(i+1)%n,r--)p[i]++;return p;}
 async function bAttack(fa,fd,ev){
   const col=SIDE[fa.u.side].c3[0],css=SIDE[fa.u.side].css,w=ev.w,key=ev.arm?'l':'a';
   fa.arm=ev.arm;fa.aim=1;
-  const nHit={0:1,4:1,5:6,1:4,7:4,2:4,3:2,6:1}[w]||1,n=ev.ev?1:Math.min(nHit,Math.max(1,ev.dmg)),parts=ev.ev?[0]:splitDmg(ev.dmg,n);
+  const nHit={0:1,4:1,5:6,1:4,7:4,2:4,3:2,6:1}[w]||1,n=ev.ev?1:Math.min(Math.ceil(nHit*(ev.sp?1.5:1)),Math.max(1,ev.dmg)),parts=ev.ev?[0]:splitDmg(ev.dmg,n);
   let hi=0;
+  if(ev.sp){SFX.special();const bt=$('battle'),bn=document.createElement('div');bn.className='bsp';bn.innerHTML='必殺技！<small>'+SPN[w]+'</small>';bt.appendChild(bn);setTimeout(()=>bn.remove(),1200);
+    fa.glow=1.1;fa.aim=1;fa.tLean=-.25;fa.armT[key]=-2.4;fa.armK=.2;camShake=1.2;await bsl(1000);}
   const arm=v=>{fa.armT[key]=v;};
   const rest=()=>{fa.armT.a=null;fa.armT.l=null;fa.tLean=0;fa.tTwist=0;fa.tHop=0;fa.armK=.18;};
   const hit=()=>{
@@ -916,8 +925,9 @@ async function bAttack(fa,fd,ev){
     if(hi>=parts.length){hi++;return;}
     const part=parts[hi++],last=hi===parts.length;
     SFX.hit();fd.hp-=part;fd.shake=.3;fd.flash=.25;fd.react=1;fd.stagger=Math.min(.9,.2+part/fd.u.max*3);camShake=Math.min(2,camShake+.15+part/fd.u.max*3);
-    bPop(fd,'-'+part,css,{size:parts.length>1?22:38,dmg:1});
+    bPop(fd,'-'+part,css,{size:(parts.length>1?22:38)+(ev.sp?8:0),dmg:1,sub:ev.sp&&parts.length===1?'★'+SPN[w]:''});
     if(last){
+      if(ev.sp){const f2=document.createElement('div');f2.className='bflash';$('battle').appendChild(f2);setTimeout(()=>f2.remove(),500);bPop(fd,'必殺！','#ffd75e',{size:24,dy:-60,sub:SPN[w]});camShake=2.6;}
       if(parts.length>1)bPop(fd,'合計 '+ev.dmg,'#ff3040',{size:26,dy:34,dmg:1});
       if(ev.crit)bPop(fd,'CRITICAL!','#ffd75e',{size:20,dy:-34});
       if(ev.tdef>0)bPop(fd,'',css,{size:1,dy:8,sub:'地形防御で -'+ev.tdef});
@@ -953,7 +963,7 @@ async function playBattle(a,d,evs){
   bF.forEach(f=>{bScene.remove(f.g);f.g.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose();});});bfx.forEach(f=>f.kill());bfx=[];
   const left=a.side===0?a:d,right=left===a?d:a;
   bF=[left,right].map((u,i)=>{const r=buildRobot(u.cfg,SIDE[u.side].c3);const x=i?3.2:-3.2,face=i?-1:1;
-    Object.assign(r,{u,hp:u.hp,x,cx:x,face,react:0,stagger:0,tLean:0,tTwist:0,tHop:0,hopC:0,armT:{a:null,l:null},armK:.18,victory:0,baseY:face>0?PI/2-.35:-PI/2+.35,arm:0,aim:0,dash:0,shake:0,flash:0,dodge:0,dead:false,spin:0});
+    Object.assign(r,{u,hp:u.hp,x,cx:x,face,react:0,glow:0,stagger:0,tLean:0,tTwist:0,tHop:0,hopC:0,armT:{a:null,l:null},armK:.18,victory:0,baseY:face>0?PI/2-.35:-PI/2+.35,arm:0,aim:0,dash:0,shake:0,flash:0,dodge:0,dead:false,spin:0});
     r.g.scale.setScalar(.62);r.g.rotation.y=r.baseY;if(u.aura)addAura(r);bScene.add(r.g);return r;});
   bHud();bLast=performance.now();
   await bsl(450);
@@ -975,7 +985,7 @@ function battleFrame(){
     r.spin=Math.max(0,r.spin-dt);r.drills.forEach(dr=>{dr.rotation.y+=(r.spin>0||r.dash?.6:.08);});
     if(r.auras)r.auras.forEach((m,j)=>{m.material.color.setHSL(((bT*.12+j*.31)%1),.9,.6);m.rotation.y+=dt*(.6+j*.3);m.scale.y=1+Math.sin(bT*2+j)*.08;});
     r.shake=Math.max(0,r.shake-dt);r.flash=Math.max(0,r.flash-dt);
-    r.mats.forEach(m=>m.color.setHex(r.flash>0&&Math.floor(r.flash*30)%2?0xffffff:(r.dead?0x4a4c7a:m.base)));
+    r.glow=Math.max(0,r.glow-dt);r.mats.forEach(m=>m.color.setHex(r.flash>0&&Math.floor(r.flash*30)%2?0xffffff:(r.dead?0x4a4c7a:(r.glow>0&&Math.floor(bT*16)%2?0xffd75e:m.base))));
   });
   for(let i=bfx.length-1;i>=0;i--)if(!bfx[i].up(dt))bfx.splice(i,1);
   camShake=Math.max(0,camShake-dt*3);bCam.position.set(camBase[0]+(Math.random()-.5)*camShake*.6,camBase[1]+(Math.random()-.5)*camShake*.4,camBase[2]);
